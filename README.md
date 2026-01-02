@@ -7,6 +7,7 @@ English follows Japanese.
 ## 🇯🇵 日本語（Japanese）
 
 このアプリは、iPhoneでスポーツやスキルの練習を「もっと楽しく、効率よく」するために設計されたWebアプリです。お手本の動画を見ながら自分の姿を映し出し、上達をサポートします！
+ダンス、ゴルフ、テニス、ヨガなど、あらゆるフォーム確認に！
 
 ### 🌟 主な機能
 * **シンクロ表示**: お手本動画と自分の姿を「左右」や「重ね表示（ゴースト）」に切り替えて表示。
@@ -32,6 +33,7 @@ English follows Japanese.
 ## 🇺🇸 English
 
 Form Mirror Pro for iPhone is a high-performance web application designed for sports or skill practice on mobile. Analyze and improve your moves by overlaying or side-by-side viewing with reference videos.
+Perfect your form for dance, golf, tennis, yoga, and all types of sports!
 
 ### 🌟 Key Features
 * **Synchronized Display**: Switch between "Side-by-Side," "Reference Only," or "Camera Only" with Ghost overlay.
