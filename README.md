@@ -64,3 +64,8 @@ Perfect your form for dance, golf, tennis, yoga, and all types of sports!
 
 ### 🚀 How to Use
 1. **Launch**: Open in your browser (Safari recommended) and tap "Start (EN)".
+
+---
+
+## 📄 License
+Copyright (c) 2026 Kunifami
