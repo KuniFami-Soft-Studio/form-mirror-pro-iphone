@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-1V1ELMWFTY"></script>
     <script>
     window.dataLayer = window.dataLayer || [];
@@ -52,8 +51,22 @@
         .donation-links { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
         .donation-links a { padding: 10px 15px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 14px; color: white; background: #333; border: 1px solid #555; }
         .btn-proceed { background:#007AFF; font-size:18px; width:180px; padding:15px; margin: 10px; }
+        
+        /* ホームへ戻るボタンのスタイル */
+        .btn-home { 
+            background: #8e8e93; 
+            font-size: 16px; 
+            width: 200px; 
+            padding: 12px; 
+            margin: 10px; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 15px; 
+            font-weight: bold;
+            display: inline-block;
+            text-align: center;
+        }
 
-        /* 広告用コンテナスタイル追加 */
         .ad-container { width: 100%; max-width: 320px; margin: 10px 0; text-align: center; }
 
         #saveContainer { 
@@ -69,7 +82,7 @@
     <div id="countdownOverlay"></div>
 
     <div id="loginOverlay">
-        <h2 style="margin-bottom: 20px; color: #007AFF;">Form Mirror Pro ver1.1</h2>
+        <h2 style="margin-bottom: 20px; color: #007AFF;">Form Mirror Pro for iphone ver1.1</h2>
         <div class="intro-box">
             <p style="font-size: 14px; margin: 0 0 15px 0; white-space: pre-wrap; color: #ddd;">こんにちは！便利なツールを開発しているクリエイターです。このアプリがあなたのスポーツやスキルの練習の役に立てば嬉しいです！今後も新しいプロジェクトをどんどん作っていく予定です。応援よろしくお願いします！</p>
             <p style="font-size: 13px; margin: 0; white-space: pre-wrap; color: #aaa;">Hi! I'm a creator building useful tools. I hope this app helps your sports or skill practice! I'm planning to launch more projects. Thank you for your support!</p>
@@ -93,9 +106,13 @@
             <a href="https://ofuse.me/dfee538b" target="_blank">🇯🇵 OFUSE</a>
             <a href="https://buymeacoffee.com/kunifami20w" target="_blank">🌎 Coffee</a>
         </div>
-        <div style="display: flex; flex-wrap: wrap; justify-content: center;">
-            <button class="btn-proceed" onclick="initAppWithLang('ja')">開始 (JP)</button>
-            <button class="btn-proceed" onclick="initAppWithLang('en')" style="background: #555;">Start (EN)</button>
+        
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                <button class="btn-proceed" onclick="initAppWithLang('ja')">開始 (JP)</button>
+                <button class="btn-proceed" onclick="initAppWithLang('en')" style="background: #555;">Start (EN)</button>
+            </div>
+            <a href="https://kunifami-soft-studio.github.io/" class="btn-home">🏠 ホームへ戻る / Back to Home</a>
         </div>
     </div>
 
@@ -155,6 +172,7 @@
     <video id="myCamera" autoplay muted playsinline style="display:none;"></video>
 
     <script>
+        // --- 以降のJavaScriptは元のまま ---
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
         const modelVid = document.getElementById('modelVideo');
