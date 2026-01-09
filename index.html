@@ -52,7 +52,6 @@
         .donation-links a { padding: 10px 15px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 14px; color: white; background: #333; border: 1px solid #555; }
         .btn-proceed { background:#007AFF; font-size:18px; width:180px; padding:15px; margin: 10px; }
         
-        /* ホームへ戻るボタンのスタイル */
         .btn-home { 
             background: #8e8e93; 
             font-size: 16px; 
@@ -172,7 +171,6 @@
     <video id="myCamera" autoplay muted playsinline style="display:none;"></video>
 
     <script>
-        // --- 以降のJavaScriptは元のまま ---
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
         const modelVid = document.getElementById('modelVideo');
@@ -198,6 +196,9 @@
         let currentFacingMode = "user"; 
         let cameraBuffer = [];
         const BUFFER_FPS = 30;
+
+        // --- Screen Wake Lock 制御用変数 ---
+        let wakeLock = null;
 
         const i18n = {
             ja: {
@@ -225,10 +226,30 @@
 
         canvas.width = 1280; canvas.height = 720;
 
+        // --- Screen Wake Lock 関数の定義 ---
+        const requestWakeLock = async () => {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock is active!');
+                }
+            } catch (err) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        };
+
+        // タブ切り替えやバックグラウンドから戻ったときに再取得
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+
         async function initAppWithLang(lang) {
             currentLang = lang;
             document.getElementById('loginOverlay').style.display = 'none';
             applyLanguage();
+            await requestWakeLock(); // 開始ボタンを押したタイミングでロックを有効化
             await initApp();
         }
 
