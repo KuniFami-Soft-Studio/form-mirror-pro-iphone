@@ -189,15 +189,17 @@
         let qualityIdx = 1;
         canvas.width = 1280; canvas.height = 720;
 
-        // Safariの全体ズームを防止するために e.preventDefault() と passive: false を追加
+        // Safariの全体ズームを防止。ボタン類（UI）へのタッチは邪魔しないように判定を追加
         canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length >= 1) e.preventDefault(); 
+            if (e.target === canvas) {
+                if (e.touches.length >= 2) e.preventDefault(); 
+            }
             if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].pageX; lastY = e.touches[0].pageY; }
             else if (e.touches.length === 2) { isDragging = false; lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); }
         }, { passive: false });
 
         canvas.addEventListener('touchmove', async (e) => {
-            e.preventDefault(); 
+            if (e.target === canvas) e.preventDefault(); 
             const sw = window.innerWidth;
             if (e.touches.length === 2) {
                 const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
@@ -394,11 +396,12 @@
                 pVid.play();
             }; 
 
+            // 録画開始時にA地点へリセットして再生
+            modelVid.currentTime = pointA; 
             mediaRecorder.start(1000); 
             recordBtn.innerText = i18n[currentLang].recordStop; 
             recordBtn.classList.add('is-recording'); 
             
-            modelVid.currentTime = pointA; 
             modelVid.play();
             playPauseBtn.innerText = i18n[currentLang].pause;
         }
