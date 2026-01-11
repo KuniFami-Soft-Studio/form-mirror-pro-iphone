@@ -98,7 +98,7 @@
             display: none; position: fixed; inset: 0; z-index: 9500; background: #000;
             flex-direction: column; align-items: center; justify-content: center;
         }
-        #previewVid { width: 100%; max-height: 70vh; margin-bottom: 20px; }
+        #previewVid { width: 100%; max-height: 60vh; margin-bottom: 20px; background: #222; }
     </style>
 </head>
 <body>
@@ -108,8 +108,8 @@
     <div id="loginOverlay">
         <h2 style="margin-bottom: 20px; color: #007AFF;">Form Mirror Pro for iPhone v1.2</h2>
         <div class="intro-box">
-            <p style="font-size: 14px; margin: 0 0 15px 0; white-space: pre-wrap; color: #ddd;">こんにちは！便利なツールを開発しているクリエイターです。このアプリがあなたのスポーツやスキルの練習の役に立てば嬉しいです！今後も新しいプロジェクトをどんどん作っていく予定です。応援よろしくお願いします！</p>
-            <p style="font-size: 13px; margin: 0; white-space: pre-wrap; color: #aaa;">Hi! I'm a creator building useful tools. I hope this app helps your sports or skill practice! I'm planning to launch more projects. Thank you for your support!</p>
+            <p style="font-size: 14px; margin: 0 0 15px 0; white-space: pre-wrap; color: #ddd;">こんにちは！練習をサポートする録画ツールです。iPhoneの方は録画終了後に出る「保存・共有」から「ビデオを保存」を選んでください。</p>
+            <p style="font-size: 13px; margin: 0; white-space: pre-wrap; color: #aaa;">Hi! This tool helps your practice. After recording, tap "Share" and select "Save Video" on your iPhone.</p>
         </div>
         <div style="width: 100%; max-width: 320px; margin: 10px 0; text-align: center;">
             <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5115190227060860" data-ad-slot="3577508619" data-ad-format="auto" data-full-width-responsive="true"></ins>
@@ -175,7 +175,7 @@
     </div>
 
     <div id="saveContainer">
-        <h3 id="saveTitle" style="color:white;">録画完了</h3>
+        <h3 id="saveTitle" style="color:white; margin-bottom:10px;">録画完了</h3>
         <video id="previewVid" playsinline controls></video>
         <div style="display:flex; gap:15px; width:90%;">
             <button onclick="closeSaveUI()" style="flex:1; padding:15px; border-radius:12px; background:#333; color:white; border:none;">閉じる</button>
@@ -197,12 +197,14 @@
         const brightnessRange = document.getElementById('brightnessRange');
         const ghostRange = document.getElementById('ghostRange');
         const cdOverlay = document.getElementById('countdownOverlay');
+        const previewVid = document.getElementById('previewVid');
+        const saveContainer = document.getElementById('saveContainer');
         
         let displayMode = 0, mediaRecorder = null, recordedChunks = [];
         let pointA = 0, pointB = 0, isLooping = false, lastBlob = null;
         let speeds = [1.0, 0.75, 0.5, 1.25, 1.5], speedIdx = 0;
         let delayTimes = [0, 3, 4, 5], delayIdx = 0; 
-        let gridMode = 0; // 0:None, 1:Center, 2:3x3, 3:5x5, 4:8x8, 5:12x12, 6:16x16
+        let gridMode = 0;
         let countdownOptions = [3, 5, 7], countdownIdx = 0;
         let recordBitrates = [2000000, 5000000, 12000000], bitrateIdx = 1;
         let isCountingDown = false;
@@ -225,20 +227,13 @@
         }
 
         canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) { 
-                isDragging = true; 
-                lastX = e.touches[0].pageX; 
-                lastY = e.touches[0].pageY; 
-            } else if (e.touches.length === 2) { 
-                isDragging = false; 
-                lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); 
-            }
+            if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].pageX; lastY = e.touches[0].pageY; } 
+            else if (e.touches.length === 2) { isDragging = false; lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); }
         }, { passive: false });
 
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const sw = window.innerWidth;
-            const sh = window.innerHeight;
             if (e.touches.length === 2) {
                 const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
                 if (lastTouchDist > 0) {
@@ -251,48 +246,31 @@
             } else if (e.touches.length === 1 && isDragging) {
                 const target = (displayMode === 0) ? (lastX < sw / 2 ? transformModel : transformMe) : (displayMode === 1 ? transformModel : transformMe);
                 target.x += (e.touches[0].pageX - lastX) * (canvas.width / sw) / target.scale;
-                target.y += (e.touches[0].pageY - lastY) * (canvas.height / sh) / target.scale;
-                lastX = e.touches[0].pageX; 
-                lastY = e.touches[0].pageY;
+                target.y += (e.touches[0].pageY - lastY) * (canvas.height / window.innerHeight) / target.scale;
+                lastX = e.touches[0].pageX; lastY = e.touches[0].pageY;
             }
         }, { passive: false });
 
         async function initApp() {
             try {
-                if (myCam.srcObject) {
-                    myCam.srcObject.getTracks().forEach(t => t.stop());
-                }
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, 
-                    audio: false 
-                });
+                if (myCam.srcObject) myCam.srcObject.getTracks().forEach(t => t.stop());
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode, width: 1280, height: 720 }, audio: false });
                 myCam.srcObject = stream;
                 await myCam.play();
                 showUI(); 
-                if(!window.isRendering) { 
-                    window.isRendering = true; 
-                    render(); 
-                }
-            } catch (e) { 
-                console.error("Initialization error:", e);
-                alert("カメラの起動に失敗しました。"); 
-                document.getElementById('loginOverlay').style.display = 'flex';
-            }
+                if(!window.isRendering) { window.isRendering = true; render(); }
+            } catch (e) { alert("カメラの起動に失敗しました。"); document.getElementById('loginOverlay').style.display = 'flex'; }
         }
 
         async function initAppWithLang(lang) {
-            currentLang = lang; 
-            document.getElementById('loginOverlay').style.display = 'none';
-            if ('wakeLock' in navigator) {
-                try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
-            }
+            currentLang = lang; document.getElementById('loginOverlay').style.display = 'none';
+            if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
             await initApp();
         }
 
         function render() {
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
             let camFrame = myCam;
             if (myCam.readyState >= 2) {
                 if (delayTimes[delayIdx] > 0) {
@@ -302,10 +280,9 @@
                     cameraBuffer.push(tc);
                     if (cameraBuffer.length > 60 * 6) cameraBuffer.shift();
                     const targetFrame = delayTimes[delayIdx] * 60; 
-                    camFrame = cameraBuffer[Math.max(0, cameraBuffer.length - 1 - targetFrame)];
+                    camFrame = cameraBuffer[Math.max(0, cameraBuffer.length - 1 - targetFrame)] || myCam;
                 } else cameraBuffer = [];
             }
-
             if (displayMode === 0) {
                 draw(modelVid, 0, 0, 640, 720, mirrorModel, 100, 1, modelRotation, transformModel);
                 draw(camFrame, 640, 0, 640, 720, mirrorMe, brightnessRange.value, 1, 0, transformMe);
@@ -321,187 +298,104 @@
         }
 
         function draw(v, x, y, w, h, mirror, br, alpha, rot, trans) {
-            const isVideo = v instanceof HTMLVideoElement;
-            if (isVideo && v.readyState < 2) return;
+            if (v instanceof HTMLVideoElement && v.readyState < 2) return;
             ctx.save();
-            ctx.globalAlpha = alpha; 
-            ctx.filter = `brightness(${br}%)`;
+            ctx.globalAlpha = alpha; ctx.filter = `brightness(${br}%)`;
             ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
             ctx.translate(x + w / 2, y + h / 2);
             ctx.scale(trans.scale, trans.scale);
             ctx.translate(trans.x, trans.y);
             if (mirror) ctx.scale(-1, 1);
             if (rot !== 0) ctx.rotate(rot * Math.PI / 180);
-            const vw = (rot % 180 === 0) ? (v.videoWidth || v.width || 1) : (v.videoHeight || v.height || 1);
-            const vh = (rot % 180 === 0) ? (v.videoHeight || v.height || 1) : (v.videoWidth || v.width || 1);
+            const vw = (rot % 180 === 0) ? (v.videoWidth || v.width) : (v.videoHeight || v.height);
+            const vh = (rot % 180 === 0) ? (v.videoHeight || v.height) : (v.videoWidth || v.width);
             const ratio = fitMode === "cover" ? Math.max(w / vw, h / vh) : Math.min(w / vw, h / vh);
-            const dw = (v.videoWidth || v.width) * ratio;
-            const dh = (v.videoHeight || v.height) * ratio;
+            const dw = (v.videoWidth || v.width) * ratio; const dh = (v.videoHeight || v.height) * ratio;
             ctx.drawImage(v, -dw / 2, -dh / 2, dw, dh);
             ctx.restore();
         }
 
         function drawGrid() {
             ctx.save(); ctx.strokeStyle = "rgba(0, 255, 255, 0.6)"; ctx.lineWidth = 1; ctx.beginPath();
-            const w = canvas.width;
-            const h = canvas.height;
-            
-            if (gridMode === 1) { // Center
-                ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
-                ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
-            } else {
-                let counts = [0, 0, 3, 5, 8, 12, 16];
-                let n = counts[gridMode];
-                for(let i=1; i<n; i++){
-                    ctx.moveTo(i*(w/n), 0); ctx.lineTo(i*(w/n), h);
-                    ctx.moveTo(0, i*(h/n)); ctx.lineTo(w, i*(h/n));
-                }
+            const w = canvas.width, h = canvas.height;
+            if (gridMode === 1) { ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); } 
+            else {
+                let counts = [0, 0, 3, 5, 8, 12, 16]; let n = counts[gridMode];
+                for(let i=1; i<n; i++){ ctx.moveTo(i*(w/n), 0); ctx.lineTo(i*(w/n), h); ctx.moveTo(0, i*(h/n)); ctx.lineTo(w, i*(h/n)); }
             }
             ctx.stroke(); ctx.restore();
         }
 
         function switchCamera() { currentFacingMode = (currentFacingMode === "user") ? "environment" : "user"; initApp(); }
-        
-        function toggleMirror(target) { 
-            if (target === 'model') { mirrorModel = !mirrorModel; document.getElementById('mirrorModelBtn').classList.toggle('active', mirrorModel); } 
-            else { mirrorMe = !mirrorMe; document.getElementById('mirrorMeBtn').classList.toggle('active', mirrorMe); }
-            resetUITimer(); 
-        }
-
-        function switchLayout() { 
-            displayMode = (displayMode + 1) % 3; 
-            const labels = ["📺 Both", "📺 Model", "📺 Camera"];
-            document.getElementById('layoutBadge').innerText = labels[displayMode];
-            resetUITimer(); 
-        }
-
+        function toggleMirror(target) { if (target === 'model') { mirrorModel = !mirrorModel; document.getElementById('mirrorModelBtn').classList.toggle('active', mirrorModel); } else { mirrorMe = !mirrorMe; document.getElementById('mirrorMeBtn').classList.toggle('active', mirrorMe); } resetUITimer(); }
+        function switchLayout() { displayMode = (displayMode + 1) % 3; document.getElementById('layoutBadge').innerText = ["📺 Both", "📺 Model", "📺 Camera"][displayMode]; resetUITimer(); }
         function rotateModel() { modelRotation = (modelRotation + 90) % 360; document.getElementById('rotateModelBtn').innerText = `🔄 ${modelRotation}°`; }
         function toggleFitMode() { fitMode = (fitMode === "cover") ? "contain" : "cover"; document.getElementById('fitModeBtn').classList.toggle('active', fitMode === "contain"); }
-        function cycleGrid() { 
-            gridMode = (gridMode + 1) % 7; 
-            const labels = ["# Grid", "# Center", "# 3x3", "# 5x5", "# 8x8", "# 12x12", "# 16x16"];
-            document.getElementById('gridBtn').innerText = labels[gridMode];
-            document.getElementById('gridBtn').classList.toggle('active', gridMode > 0); 
-        }
-        function cycleQuality() {
-            bitrateIdx = (bitrateIdx + 1) % recordBitrates.length;
-            const labels = ["🎬 Low", "🎬 Standard", "🎬 High"];
-            document.getElementById('btnQuality').innerText = labels[bitrateIdx];
-            document.getElementById('btnQuality').classList.toggle('active', bitrateIdx > 0);
-        }
+        function cycleGrid() { gridMode = (gridMode + 1) % 7; document.getElementById('gridBtn').innerText = ["# Grid", "# Center", "# 3x3", "# 5x5", "# 8x8", "# 12x12", "# 16x16"][gridMode]; document.getElementById('gridBtn').classList.toggle('active', gridMode > 0); }
+        function cycleQuality() { bitrateIdx = (bitrateIdx + 1) % recordBitrates.length; document.getElementById('btnQuality').innerText = ["🎬 Low", "🎬 Standard", "🎬 High"][bitrateIdx]; }
         function cycleDelay() { delayIdx = (delayIdx + 1) % delayTimes.length; document.getElementById('delayBtn').innerText = `⏱ ${delayTimes[delayIdx]}s`; }
         function cycleCountdown() { countdownIdx = (countdownIdx + 1) % countdownOptions.length; document.getElementById('cdBtn').innerText = `⏳ ${countdownOptions[countdownIdx]}s`; }
         function changeSpeed() { speedIdx = (speedIdx + 1) % speeds.length; modelVid.playbackRate = speeds[speedIdx]; document.getElementById('btnSpeed').innerText = `⚡ x${speeds[speedIdx].toFixed(1)}`; }
         function toggleLoop() { isLooping = !isLooping; document.getElementById('btnLoop').classList.toggle('active', isLooping); }
 
-        function handleRecordClick() { 
-            if (mediaRecorder?.state === "recording") stopRecording(); 
-            else startCountdown('record'); 
-        }
-        
+        function handleRecordClick() { if (mediaRecorder?.state === "recording") stopRecording(); else startCountdown('record'); }
         function startCountdown(type) { 
-            isCountingDown = true; hideUI(); 
-            let c = countdownOptions[countdownIdx];
-            cdOverlay.style.display = 'block'; cdOverlay.innerText = c; 
-            modelVid.pause(); 
-            const t = setInterval(() => { 
-                c--; 
-                if (c > 0) cdOverlay.innerText = c; 
-                else { 
-                    clearInterval(t); cdOverlay.style.display = 'none'; isCountingDown = false; 
-                    if (type === 'record') executeRecording(); 
-                    else { modelVid.currentTime = pointA; modelVid.play(); playPauseBtn.innerText = "⏸"; } 
-                } 
-            }, 1000); 
+            isCountingDown = true; hideUI(); let c = countdownOptions[countdownIdx];
+            cdOverlay.style.display = 'block'; cdOverlay.innerText = c; modelVid.pause(); 
+            const t = setInterval(() => { c--; if (c > 0) cdOverlay.innerText = c; else { clearInterval(t); cdOverlay.style.display = 'none'; isCountingDown = false; if (type === 'record') executeRecording(); else { modelVid.currentTime = pointA; modelVid.play(); playPauseBtn.innerText = "⏸"; } } }, 1000); 
         }
 
         async function executeRecording() { 
-            recordedChunks = []; 
-            const canvasStream = canvas.captureStream(30);
-            
+            recordedChunks = []; const canvasStream = canvas.captureStream(30);
             if (!audioCtx) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContextClass();
-                audioDest = audioCtx.createMediaStreamDestination();
-                try {
-                    audioSource = audioCtx.createMediaElementSource(modelVid);
-                    audioSource.connect(audioCtx.destination);
-                    audioSource.connect(audioDest);
-                } catch(e) { console.warn("Audio source already connected or failed"); }
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContextClass(); audioDest = audioCtx.createMediaStreamDestination();
+                try { audioSource = audioCtx.createMediaElementSource(modelVid); audioSource.connect(audioCtx.destination); audioSource.connect(audioDest); } catch(e){}
             }
-            
             if (audioCtx.state === 'suspended') await audioCtx.resume();
-
-            const combinedStream = new MediaStream([
-                ...canvasStream.getVideoTracks(),
-                ...audioDest.stream.getAudioTracks()
-            ]);
-
-            mediaRecorder = new MediaRecorder(combinedStream, { 
-                mimeType: 'video/webm;codecs=vp8', 
-                videoBitsPerSecond: recordBitrates[bitrateIdx] 
-            }); 
+            const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioDest.stream.getAudioTracks()]);
+            const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: mimeType, videoBitsPerSecond: recordBitrates[bitrateIdx] }); 
             mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); }; 
             mediaRecorder.onstop = () => { 
-                lastBlob = new Blob(recordedChunks, { type: 'video/mp4' }); 
-                document.getElementById('previewVid').src = URL.createObjectURL(lastBlob); 
-                document.getElementById('saveContainer').style.display = 'flex'; 
+                lastBlob = new Blob(recordedChunks, { type: mimeType }); 
+                previewVid.src = URL.createObjectURL(lastBlob); 
+                saveContainer.style.display = 'flex'; 
             }; 
-
-            modelVid.currentTime = pointA; 
-            mediaRecorder.start(); 
-            document.getElementById('recordBtnWrapper').classList.add('is-recording');
-            modelVid.play();
-            playPauseBtn.innerText = "⏸";
+            modelVid.currentTime = pointA; mediaRecorder.start(); 
+            document.getElementById('recordBtnWrapper').classList.add('is-recording'); modelVid.play(); playPauseBtn.innerText = "⏸";
         }
 
-        function stopRecording() { 
-            if (mediaRecorder?.state === "recording") { 
-                mediaRecorder.stop(); 
-                modelVid.pause(); 
-                playPauseBtn.innerText = "▶";
-                document.getElementById('recordBtnWrapper').classList.remove('is-recording'); 
-                showUI(); 
-            } 
-        }
-
-        function loadVideo(e) { 
-            const f = e.target.files[0]; 
-            if(f) { 
-                modelVid.src = URL.createObjectURL(f); 
-                modelVid.onloadedmetadata = () => { 
-                    seekBar.max = modelVid.duration; 
-                    updateTimeDisplay(); 
-                    pointA = 0; 
-                    pointB = modelVid.duration;
-                };
-            } 
-        }
-
-        function togglePlay() { 
-            if (modelVid.paused) { modelVid.play(); playPauseBtn.innerText = "⏸"; } 
-            else { modelVid.pause(); playPauseBtn.innerText = "▶"; } 
-        }
-
-        function setPoint(p) { 
-            const time = modelVid.currentTime;
-            if (p === 'A') { pointA = time; document.getElementById('btnA').innerText = `📍 A: ${formatTime(time)}`; } 
-            else { pointB = time; document.getElementById('btnB').innerText = `📍 B: ${formatTime(time)}`; } 
-        }
-
+        function stopRecording() { if (mediaRecorder?.state === "recording") { mediaRecorder.stop(); modelVid.pause(); playPauseBtn.innerText = "▶"; document.getElementById('recordBtnWrapper').classList.remove('is-recording'); showUI(); } }
+        function loadVideo(e) { const f = e.target.files[0]; if(f) { modelVid.src = URL.createObjectURL(f); modelVid.onloadedmetadata = () => { seekBar.max = modelVid.duration; updateTimeDisplay(); pointA = 0; pointB = modelVid.duration; }; } }
+        function togglePlay() { if (modelVid.paused) { modelVid.play(); playPauseBtn.innerText = "⏸"; } else { modelVid.pause(); playPauseBtn.innerText = "▶"; } }
+        function setPoint(p) { const time = modelVid.currentTime; if (p === 'A') { pointA = time; document.getElementById('btnA').innerText = `📍 A: ${formatTime(time)}`; } else { pointB = time; document.getElementById('btnB').innerText = `📍 B: ${formatTime(time)}`; } }
         function showUI() { document.querySelectorAll('.fade-ui').forEach(u => u.classList.add('ui-visible')); resetUITimer(); }
         function hideUI() { document.querySelectorAll('.fade-ui').forEach(u => u.classList.remove('ui-visible')); }
         function resetUITimer() { if (uiTimer) clearTimeout(uiTimer); uiTimer = setTimeout(() => { if (!modelVid.paused) hideUI(); }, 4000); }
         function handleCanvasClick() { if (document.getElementById('bottomPanel').classList.contains('ui-visible')) hideUI(); else showUI(); }
         function updateTimeDisplay() { timeDisplay.innerText = `${formatTime(modelVid.currentTime)} / ${formatTime(modelVid.duration)}`; }
-        function closeSaveUI() { document.getElementById('saveContainer').style.display = 'none'; }
-        async function shareVideo() { if (lastBlob) { const f = new File([lastBlob], "form.mp4", {type:"video/mp4"}); await navigator.share({files:[f]}); } }
+        
+        function closeSaveUI() { 
+            saveContainer.style.display = 'none'; 
+            if (previewVid.src) URL.revokeObjectURL(previewVid.src); 
+            previewVid.src = ""; lastBlob = null;
+        }
+
+        async function shareVideo() { 
+            if (lastBlob) { 
+                try {
+                    const f = new File([lastBlob], "form_practice.mp4", {type: lastBlob.type}); 
+                    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+                        await navigator.share({files:[f], title:'録画ビデオ'}); 
+                    } else {
+                        const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = "form_practice.mp4"; a.click();
+                    }
+                } catch(e) { alert("保存に失敗しました。再度お試しください。"); }
+            } 
+        }
 
         seekBar.oninput = () => { modelVid.currentTime = seekBar.value; };
-        modelVid.ontimeupdate = () => { 
-            if (isLooping && modelVid.currentTime >= pointB) modelVid.currentTime = pointA; 
-            seekBar.value = modelVid.currentTime; updateTimeDisplay(); 
-        };
+        modelVid.ontimeupdate = () => { if (isLooping && modelVid.currentTime >= pointB) modelVid.currentTime = pointA; seekBar.value = modelVid.currentTime; updateTimeDisplay(); };
     </script>
 </body>
 </html>
