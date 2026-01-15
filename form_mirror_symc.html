@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1V1ELMWFTY"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-1V1ELMWFTY');
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Form Mirror Pro Max (Side-by-Side Fixed)</title>
+    <style>
+        :root {
+            --primary: #FFCC00;
+            --accent: #0A84FF;
+            --bg-glass: rgba(15, 15, 15, 0.95);
+            --text-main: #FFFFFF;
+        }
+
+        body { 
+            margin: 0; background: #000; color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; 
+            overflow: hidden; position: fixed; width: 100%; height: 100%;
+            touch-action: none; -webkit-user-select: none;
+        }
+        
+        /* メインの描画領域 */
+        #mainCanvas { width: 100vw; height: 100vh; display: block; background: #000; }
+        
+        /* UIのアニメーション */
+        .fade-ui { transition: opacity 0.3s ease, transform 0.3s ease; opacity: 0; pointer-events: none; }
+        .ui-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+        /* 上部バー */
+        .top-bar {
+            position: fixed; top: 0; left: 0; right: 0;
+            padding: calc(env(safe-area-inset-top) + 10px) 15px 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            z-index: 100;
+        }
+
+        .icon-btn {
+            background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
+            color: white; width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer;
+        }
+        .icon-btn.active { background: var(--accent); border-color: var(--accent); }
+
+        .mode-badge {
+            background: rgba(0,0,0,0.7); padding: 6px 14px; border-radius: 20px;
+            font-size: 13px; font-weight: bold; border: 1px solid var(--primary); color: var(--primary);
+        }
+
+        /* 下部パネル */
+        .bottom-panel {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            padding: 10px 10px calc(env(safe-area-inset-bottom) + 5px);
+            background: var(--bg-glass); border-top: 1px solid #333;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            display: flex; flex-direction: column; gap: 8px; z-index: 100;
+            transform: translateY(100%);
+        }
+        .bottom-panel.ui-visible { transform: translateY(0); }
+
+        .wave-container { height: 34px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; }
+        #waveCanvas { width: 100%; height: 100%; }
+
+        .sliders-row { display: flex; align-items: center; gap: 10px; }
+        .slider-group { flex: 1; display: flex; align-items: center; gap: 5px; font-size: 11px; color: #ccc; }
+        input[type="range"] { flex: 1; accent-color: var(--primary); }
+
+        .transport-row { display: flex; justify-content: space-around; align-items: center; margin: 5px 0; }
+        .play-btn { width: 70px; height: 70px; background: var(--primary); color: black; border-radius: 50%; font-size: 32px; border:none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+
+        .tools-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+        .tool-pill { flex: 0 0 auto; padding: 10px 16px; border-radius: 20px; background: #333; color: white; border: none; font-size: 12px; font-weight: bold; }
+        .tool-pill.active { background: var(--accent); }
+
+        /* 開始画面オーバーレイ */
+        #loginOverlay {
+            position: fixed; inset: 0; background: #000; z-index: 9000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+        }
+        .btn-start { background: var(--accent); font-size: 20px; padding: 18px 40px; border-radius: 30px; color: white; border: none; font-weight: bold; }
+
+        /* 重要：ビデオタグを隠すが、display:noneにはしない（デコードさせるため） */
+        .hidden-vid {
+            position: absolute;
+            top: -9999px; left: -9999px;
+            width: 1px; height: 1px;
+            opacity: 0; pointer-events: none;
+            overflow: hidden;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <h1 style="color:var(--accent); margin-bottom:10px;">Form Mirror Max</h1>
+        <p style="text-align:center; color:#888; margin-bottom:30px;">Dual Video Sync Player</p>
+        <button class="btn-start" onclick="initApp()">開始する / Start</button>
+    </div>
+
+    <div id="topPanel" class="top-bar fade-ui">
+        <div style="display:flex; gap:10px;">
+            <label class="icon-btn">📂A<input type="file" hidden accept="video/*" onchange="loadVideo(event, 'A')"></label>
+            <label class="icon-btn">📂B<input type="file" hidden accept="video/*" onchange="loadVideo(event, 'B')"></label>
+        </div>
+        <div class="mode-badge" id="layoutBadge" onclick="cycleLayout()">📺 左右並べる</div>
+        <button class="icon-btn" id="syncLockBtn" onclick="toggleSyncLock()">🔓</button>
+    </div>
+
+    <canvas id="mainCanvas" onclick="toggleUI()"></canvas>
+
+    <div id="bottomPanel" class="bottom-panel fade-ui">
+        <div class="wave-container"><canvas id="waveCanvas"></canvas></div>
+        <div class="sliders-row">
+            <div class="slider-group"><span>👻</span><input type="range" id="ghostRange" min="0" max="100" value="0"></div>
+            <div class="slider-group"><span>💡</span><input type="range" id="brightnessRange" min="50" max="250" value="100"></div>
+            <div class="slider-group"><span>#太</span><input type="range" id="gridWeightRange" min="1" max="10" value="2"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#aaa; font-family: monospace;">
+            <span id="timeA">A: 0:00.00</span>
+            <span id="timeB">B: 0:00.00</span>
+        </div>
+        <input type="range" id="seekBar" min="0" max="100" value="0" step="0.01" style="width:100%;">
+        <div class="transport-row">
+            <button class="tool-pill" onclick="changeFrame(-1)">Step-</button>
+            <button class="icon-btn" onclick="seekRelative(-5)">⏪</button>
+            <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+            <button class="icon-btn" onclick="seekRelative(5)">⏩</button>
+            <button class="tool-pill" onclick="changeFrame(1)">Step+</button>
+        </div>
+        <div class="tools-scroll">
+            <button class="tool-pill" id="drawBtn" onclick="toggleDrawMode()">✏️ 描画</button>
+            <button class="tool-pill" onclick="clearStrokes()">🗑️ 消去</button>
+            <button class="tool-pill" id="gridBtn" onclick="cycleGrid()"># Grid:OFF</button>
+            <button class="tool-pill" id="gridColorBtn" onclick="cycleGridColor()" style="color:white; border: 1px solid white;"># 色</button>
+            <button class="tool-pill active" id="mirrorABtn" onclick="toggleMirror('A')">🪞 A反転</button>
+            <button class="tool-pill active" id="mirrorBBtn" onclick="toggleMirror('B')">🪞 B反転</button>
+            <button class="tool-pill" id="speedBtn" onclick="cycleSpeed()">⚡ x1.0</button>
+            <button class="tool-pill warning" onclick="resetTransforms()">🔄 位置リセット</button>
+        </div>
+    </div>
+
+    <video id="videoA" class="hidden-vid" playsinline webkit-playsinline muted preload="auto"></video>
+    <video id="videoB" class="hidden-vid" playsinline webkit-playsinline muted preload="auto"></video>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const vidA = document.getElementById('videoA');
+        const vidB = document.getElementById('videoB');
+        const waveCanvas = document.getElementById('waveCanvas');
+        const waveCtx = waveCanvas.getContext('2d');
+
+        // layout: 0=左右(SideBySide), 1=上下, 2=重ね(Overlay)
+        let layout = 0; 
+        let syncLocked = false;
+        let drawMode = false;
+        let strokes = [], currentStroke = null;
+        let speedIdx = 2;
+        const speeds = [0.25, 0.5, 1.0, 1.5, 2.0];
+        let gridMode = 0; 
+        let gridColors = ["rgba(255,255,255,0.4)", "rgba(0,255,255,0.5)", "rgba(255,204,0,0.5)", "rgba(255,50,50,0.5)"];
+        let gridColorIdx = 0;
+        let mirrorA = true, mirrorB = true;
+        let transformA = { scale: 1, x: 0, y: 0 };
+        let transformB = { scale: 1, x: 0, y: 0 };
+        let audioCtx, analyserA, analyserB, dataA, dataB;
+        let lastTouchDist = 0, lastX = 0, lastY = 0, lastX2 = 0;
+
+        function initApp() {
+            document.getElementById('loginOverlay').style.display = 'none';
+            
+            // iOSでの全画面化を徹底的に防ぐための初期化処理
+            [vidA, vidB].forEach(v => {
+                v.setAttribute('playsinline', '');
+                v.setAttribute('webkit-playsinline', '');
+                v.muted = true; // 最初はミュートにしておく
+                v.load();
+            });
+            
+            resize();
+            setupAudio();
+            requestAnimationFrame(render);
+            showUI();
+        }
+
+        function setupAudio() {
+            try {
+                // ユーザーアクション（ボタンクリック）内でコンテキストを作成
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyserA = audioCtx.createAnalyser();
+                analyserB = audioCtx.createAnalyser();
+                
+                // ビデオソースをオーディオノードに接続
+                const srcA = audioCtx.createMediaElementSource(vidA);
+                const srcB = audioCtx.createMediaElementSource(vidB);
+                
+                srcA.connect(analyserA); srcA.connect(audioCtx.destination);
+                srcB.connect(analyserB); srcB.connect(audioCtx.destination);
+                
+                dataA = new Uint8Array(analyserA.frequencyBinCount);
+                dataB = new Uint8Array(analyserB.frequencyBinCount);
+            } catch(e) {
+                console.warn("Audio setup failed (likely CORS or user gesture issues):", e);
+            }
+        }
+
+        function loadVideo(e, target) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const url = URL.createObjectURL(file);
+            const v = (target === 'A') ? vidA : vidB;
+            
+            // ロード時にも属性を再強制
+            v.src = url;
+            v.setAttribute('playsinline', ''); 
+            v.setAttribute('webkit-playsinline', '');
+            v.muted = false; // ロード後は音を出せる状態にする（ただしPlay時に制御）
+            v.load();
+        }
+
+        function render() {
+            // 背景クリア
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const w = canvas.width, h = canvas.height;
+            const ghost = document.getElementById('ghostRange').value / 100;
+            const bri = document.getElementById('brightnessRange').value;
+
+            // レイアウトに応じた描画ロジック
+            if (layout === 0) { // 左右並び
+                drawFrame(vidA, 0, 0, w/2, h, mirrorA, 100, 1, transformA);
+                drawFrame(vidB, w/2, 0, w/2, h, mirrorB, bri, 1, transformB);
+                // ゴースト（残像）描画
+                if(ghost > 0) drawFrame(vidA, w/2, 0, w/2, h, mirrorA, 100, ghost, transformA);
+            } else if (layout === 1) { // 上下並び
+                drawFrame(vidA, 0, 0, w, h/2, mirrorA, 100, 1, transformA);
+                drawFrame(vidB, 0, h/2, w, h/2, mirrorB, bri, 1, transformB);
+                if(ghost > 0) drawFrame(vidA, 0, h/2, w, h/2, mirrorA, 100, ghost, transformA);
+            } else { // 重ね（Overlay）
+                drawFrame(vidB, 0, 0, w, h, mirrorB, bri, 1, transformB);
+                drawFrame(vidA, 0, 0, w, h, mirrorA, 100, Math.max(0.3, ghost), transformA);
+            }
+            
+            if(gridMode > 0) drawGrid();
+            drawAnnotations();
+            drawWaveforms();
+            updateTimeDisplay();
+            requestAnimationFrame(render);
+        }
+
+        // Canvasへのビデオフレーム描画関数
+        function drawFrame(v, x, y, w, h, mirror, br, alpha, trans) {
+            if (v.readyState < 2) return; // データがない場合はスキップ
+            ctx.save();
+            // クリッピング領域を設定
+            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+            
+            ctx.globalAlpha = alpha;
+            if (br != 100) ctx.filter = `brightness(${br}%)`;
+            
+            // 座標変換（中心基準）
+            ctx.translate(x + w/2, y + h/2);
+            ctx.scale(trans.scale, trans.scale);
+            ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+            
+            // アスペクト比維持（Coverモード）
+            const videoRatio = v.videoWidth / v.videoHeight;
+            const canvasRatio = w / h;
+            let dw, dh;
+            if (videoRatio > canvasRatio) { 
+                dh = h; dw = h * videoRatio; 
+            } else { 
+                dw = w; dh = w / videoRatio; 
+            }
+            
+            ctx.drawImage(v, -dw/2, -dh/2, dw, dh);
+            ctx.restore();
+        }
+
+        async function togglePlay() {
+            // AudioContextが止まっていたら再開（iOS対策）
+            if(audioCtx && audioCtx.state === 'suspended') {
+                await audioCtx.resume();
+            }
+
+            if(vidA.paused || vidB.paused) { 
+                try {
+                    vidA.muted = false; vidB.muted = false;
+                    // 同時再生を試みる
+                    const pA = vidA.play();
+                    const pB = vidB.play();
+                    await Promise.all([pA, pB]);
+                } catch(e) { 
+                    console.error("Play error:", e); 
+                    // 失敗時はミュートで再トライ（自動再生ポリシー対策）
+                    vidA.muted = true; vidB.muted = true;
+                    vidA.play(); vidB.play();
+                }
+            } else { 
+                vidA.pause(); vidB.pause(); 
+            }
+            document.getElementById('playBtn').innerText = vidA.paused ? "▶" : "⏸";
+        }
+
+        function seekRelative(sec) {
+            vidA.currentTime = Math.max(0, vidA.currentTime + sec);
+            if(syncLocked) vidB.currentTime = Math.max(0, vidB.currentTime + sec);
+        }
+
+        function changeFrame(dir) {
+            const step = 1/30; // 30fps想定
+            vidA.currentTime += dir * step;
+            if(syncLocked) vidB.currentTime += dir * step;
+        }
+
+        // --- タッチ操作関連 ---
+        canvas.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            lastX = t.clientX; lastY = t.clientY;
+            
+            if (e.touches.length === 2) {
+                lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                lastX2 = (e.touches[0].pageX + e.touches[1].pageX) / 2;
+            }
+            
+            if (drawMode) {
+                const x = (t.clientX - rect.left) * (canvas.width / rect.width);
+                const y = (t.clientY - rect.top) * (canvas.height / rect.height);
+                currentStroke = [{x, y}];
+            }
+        });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault(); // スクロール防止
+            const rect = canvas.getBoundingClientRect();
+            
+            if (drawMode && currentStroke) {
+                const t = e.touches[0];
+                const cx = (t.clientX - rect.left) * (canvas.width / rect.width);
+                const cy = (t.clientY - rect.top) * (canvas.height / rect.height);
+                currentStroke.push({x: cx, y: cy});
+            } else if (e.touches.length === 1) {
+                // ドラッグで移動
+                const t = e.touches[0];
+                const dx = (t.clientX - lastX) * 2; // 感度調整
+                const dy = (t.clientY - lastY) * 2;
+                
+                // タッチ位置でどちらの動画を動かすか判定
+                let target;
+                if (layout === 0) target = (t.clientX < rect.width/2) ? transformA : transformB;
+                else if (layout === 1) target = (t.clientY < rect.height/2) ? transformA : transformB;
+                else target = transformA; // 重ねモードはAを移動（Bは背景固定推奨）
+
+                target.x += dx; target.y += dy;
+                lastX = t.clientX; lastY = t.clientY;
+            } else if (e.touches.length === 2) {
+                // ピンチイン・アウト（拡大縮小）
+                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2;
+                
+                const target = (midX < rect.width/2) ? transformA : transformB;
+                target.scale *= (dist / lastTouchDist);
+                
+                // 2本指スライドでスクラブ再生（停止時のみ）
+                if (vidA.paused) {
+                    const scrub = (midX - lastX2) * 0.05; 
+                    vidA.currentTime += scrub;
+                    if(syncLocked) vidB.currentTime += scrub;
+                }
+                lastTouchDist = dist;
+                lastX2 = midX;
+            }
+        }, {passive:false});
+
+        canvas.addEventListener('touchend', () => { 
+            if(currentStroke) {
+                strokes.push(currentStroke); 
+                currentStroke = null; 
+            }
+        });
+
+        // --- 表示更新・ユーティリティ ---
+        function updateTimeDisplay() {
+            const fmt = v => {
+                const m = Math.floor(v/60), s = Math.floor(v%60), ms = Math.floor((v%1)*100);
+                return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`;
+            };
+            document.getElementById('timeA').innerText = `A: ${fmt(vidA.currentTime)}`;
+            document.getElementById('timeB').innerText = `B: ${fmt(vidB.currentTime)}`;
+            if(!vidA.paused) document.getElementById('seekBar').value = (vidA.currentTime / (vidA.duration || 1)) * 100;
+        }
+
+        function resize() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            waveCanvas.width = waveCanvas.offsetWidth;
+            waveCanvas.height = waveCanvas.offsetHeight;
+        }
+
+        function drawWaveforms() {
+            if(!analyserA || !analyserB) return;
+            analyserA.getByteFrequencyData(dataA);
+            analyserB.getByteFrequencyData(dataB);
+            
+            waveCtx.clearRect(0,0, waveCanvas.width, waveCanvas.height);
+            const step = waveCanvas.width / dataA.length;
+            
+            // 青い波形 (A)
+            waveCtx.fillStyle = '#0A84FF';
+            dataA.forEach((v, i) => waveCtx.fillRect(i*step, 15 - v/25, step-1, v/12.5));
+            // 黄色い波形 (B)
+            waveCtx.fillStyle = '#FFCC00';
+            dataB.forEach((v, i) => waveCtx.fillRect(i*step, 30 - v/25, step-1, v/12.5));
+        }
+
+        function drawAnnotations() {
+            ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = 5;
+            ctx.strokeStyle = "#0A84FF";
+            strokes.forEach(p => {
+                ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
+                p.forEach(pt => ctx.lineTo(pt.x, pt.y)); ctx.stroke();
+            });
+            if(currentStroke) { 
+                ctx.strokeStyle = "#FF3B30"; ctx.beginPath(); ctx.moveTo(currentStroke[0].x, currentStroke[0].y); 
+                currentStroke.forEach(pt => ctx.lineTo(pt.x, pt.y)); ctx.stroke(); 
+            }
+            ctx.restore();
+        }
+
+        function drawGrid() {
+            ctx.save();
+            ctx.strokeStyle = gridColors[gridColorIdx];
+            ctx.lineWidth = document.getElementById('gridWeightRange').value;
+            const cells = gridMode === 1 ? 3 : 12;
+            ctx.beginPath();
+            for(let i=1; i<cells; i++) {
+                ctx.moveTo(i * (canvas.width/cells), 0); ctx.lineTo(i * (canvas.width/cells), canvas.height);
+                ctx.moveTo(0, i * (canvas.height/cells)); ctx.lineTo(canvas.width, i * (canvas.height/cells));
+            }
+            ctx.stroke(); ctx.restore();
+        }
+
+        document.getElementById('seekBar').oninput = function() {
+            const time = (this.value / 100) * (vidA.duration || 1);
+            const diff = time - vidA.currentTime;
+            vidA.currentTime = time;
+            if(syncLocked) vidB.currentTime += diff;
+        };
+
+        function cycleLayout() {
+            layout = (layout + 1) % 3;
+            document.getElementById('layoutBadge').innerText = ["📺 左右並べる", "📺 上下並べる", "📺 重ねる"][layout];
+        }
+
+        function cycleSpeed() {
+            speedIdx = (speedIdx + 1) % speeds.length;
+            vidA.playbackRate = vidB.playbackRate = speeds[speedIdx];
+            document.getElementById('speedBtn').innerText = `⚡ x${speeds[speedIdx].toFixed(1)}`;
+        }
+
+        function cycleGrid() {
+            gridMode = (gridMode + 1) % 3;
+            document.getElementById('gridBtn').innerText = ["# Grid:OFF", "# Grid:3x3", "# Grid:12x12"][gridMode];
+        }
+
+        function cycleGridColor() {
+            gridColorIdx = (gridColorIdx + 1) % gridColors.length;
+            document.getElementById('gridColorBtn').style.backgroundColor = gridColors[gridColorIdx];
+        }
+
+        function toggleSyncLock() { 
+            syncLocked = !syncLocked; 
+            const btn = document.getElementById('syncLockBtn');
+            btn.innerText = syncLocked ? "🔒" : "🔓"; 
+            btn.classList.toggle('active', syncLocked); 
+        }
+        function toggleDrawMode() { drawMode = !drawMode; document.getElementById('drawBtn').classList.toggle('active', drawMode); }
+        function clearStrokes() { strokes = []; }
+        function toggleMirror(t) { 
+            if(t==='A') mirrorA = !mirrorA; else mirrorB = !mirrorB; 
+            document.getElementById(`mirror${t}Btn`).classList.toggle('active'); 
+        }
+        function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
+        function toggleUI() { 
+            document.getElementById('bottomPanel').classList.toggle('ui-visible'); 
+            document.getElementById('topPanel').classList.toggle('ui-visible'); 
+        }
+        function showUI() { 
+            document.getElementById('bottomPanel').classList.add('ui-visible'); 
+            document.getElementById('topPanel').classList.add('ui-visible'); 
+        }
+        
+        window.addEventListener('resize', resize);
+    </script>
+</body>
+</html>
