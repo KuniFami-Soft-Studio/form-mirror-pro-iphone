@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1V1ELMWFTY"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-1V1ELMWFTY');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Form Mirror Pro for iPhone v1.2 - Official Operation Manual / 操作マニュアル</title>
+    <meta name="description" content="[JP] iPhone版 Form Mirror Pro の全機能を網羅した公式マニュアル。ゴースト重ね合わせ、遅延表示、録画、ズーム操作など、最速でフォーム改善するための全機能を詳しく解説。[EN] Official manual for Form Mirror Pro for iPhone. Learn all features: Ghost mode, Delay, Recording, and Zoom gestures.">
+    <meta name="keywords" content="Form Mirror Pro, iPhone, 操作マニュアル, フォーム改善, ゴルフ, ダンス, 録画, 知育, 集中マスター, Manual, Form Check, Recording, iOS App">
+    <meta name="author" content="KuniFami Soft Studio">
+    
+    <meta property="og:title" content="Form Mirror Pro for iPhone - Official Operation Manual">
+    <meta property="og:description" content="お手本と自分を並べて録画し、最速でフォームを改善。全機能の使い方を徹底解説。">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://kunifami-soft-studio.com/guide-iphone.html">
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5115190227060860" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --highlight: #e67e22;
+            --bg-color: #f4f7f9;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-sub: #546e7a;
+        }
+        body {
+            font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+            line-height: 1.8; color: var(--text-main); background: var(--bg-color); margin: 0; padding: 0;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+        
+        /* Header & Nav */
+        header { 
+            background: white; padding: 40px 30px; border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05); border-left: 8px solid var(--accent-color);
+            margin-bottom: 40px;
+        }
+        h1 { font-size: 2.2rem; color: var(--primary-color); margin: 0; }
+        .intro-text { margin-top: 20px; font-size: 1.1rem; color: var(--text-sub); border-top: 1px solid #eee; padding-top: 20px; }
+        .top-nav { margin-bottom: 25px; }
+        .top-nav a { color: var(--accent-color); text-decoration: none; font-weight: bold; font-size: 0.95rem; }
+
+        /* Content Sections */
+        h2 { 
+            font-size: 1.7rem; color: var(--primary-color); background: #ebf5fb;
+            padding: 12px 20px; border-radius: 8px; margin: 60px 0 30px; 
+            border-bottom: 2px solid var(--accent-color);
+        }
+        h3 { 
+            font-size: 1.3rem; color: var(--primary-color); margin: 40px 0 20px;
+            display: flex; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 8px;
+        }
+        h3::before { content: "🔹"; margin-right: 10px; font-size: 1rem; }
+        h4 { font-size: 1.1rem; color: var(--highlight); margin: 25px 0 10px; }
+
+        /* Feature Cards */
+        .card { 
+            background: var(--card-bg); padding: 30px; border-radius: 15px; 
+            border: 1px solid #e1e8ed; margin-bottom: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        }
+        .feature-item { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed #eee; }
+        .feature-item:last-child { border-bottom: none; }
+        .btn-label { 
+            font-weight: bold; color: white; background: var(--primary-color); 
+            padding: 3px 12px; border-radius: 6px; display: inline-block; margin-bottom: 8px;
+        }
+        .desc-jp { font-weight: bold; display: block; font-size: 1.05rem; }
+        .desc-en { display: block; font-size: 0.9rem; color: var(--text-sub); font-style: italic; margin-bottom: 10px; }
+        
+        /* Tips & Warnings */
+        .info-box { 
+            background: #fff8e1; border-left: 6px solid #ffb300; padding: 25px; 
+            border-radius: 10px; margin: 30px 0;
+        }
+        .info-box strong { color: #f57c00; display: block; margin-bottom: 10px; font-size: 1.2rem; }
+        .warning-box {
+            background: #ffebee; border-left: 6px solid #e53935; padding: 20px; border-radius: 10px; margin: 20px 0;
+        }
+
+        /* List Styling */
+        ul, ol { padding-left: 20px; }
+        li { margin-bottom: 12px; }
+
+        /* Footer */
+        footer { 
+            text-align: center; margin-top: 100px; padding: 50px 0; 
+            border-top: 2px solid #eee; color: var(--text-sub);
+        }
+        .footer-nav { margin-bottom: 25px; }
+        .footer-nav a { color: var(--text-sub); text-decoration: none; margin: 0 15px; font-size: 0.95rem; }
+        .footer-nav a:hover { color: var(--accent-color); }
+        .copyright { font-size: 0.85rem; }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.6rem; }
+            .container { padding: 20px 15px; }
+            .card { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <nav class="top-nav">
+        <a href="../index.html">← Back to Home / ホームへ戻る</a>
+    </nav>
+
+    <header>
+        <h1>Form Mirror Pro for iPhone v1.2<br>Operation Manual / 操作マニュアル</h1>
+        <div class="intro-text">
+            Compare and record your movements alongside a reference video to master your form instantly.<br>
+            お手本動画と自分の動きを並べて録画し、<strong>最速でフォームを改善</strong>するためのツールです。
+        </div>
+    </header>
+
+    <div style="margin: 40px 0; text-align: center;">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-5115190227060860"
+             data-ad-slot="3577508619"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+    </div>
+
+    <main>
+        <section>
+            <h2>🛠 Top Panel / 上部パネル</h2>
+            <div class="card">
+                <div class="feature-item">
+                    <span class="btn-label">📂 Choose File</span>
+                    <span class="desc-jp">【ファイルを選択】お手本動画をデバイスから読み込みます。</span>
+                    <span class="desc-en">Load a reference video from your device.</span>
+                </div>
+                <div class="feature-item">
+                    <span class="btn-label">📺 Layout</span>
+                    <span class="desc-jp">【表示切替】画面レイアウトを切り替えます。</span>
+                    <p>Both (左右並列) / Model (お手本のみ) / Camera (カメラのみ) の3パターン。<br>
+                    <span class="desc-en">Switches between side-by-side, model-only, and camera-only views.</span></p>
+                </div>
+                <div class="feature-item">
+                    <span class="btn-label">🔄 Camera</span>
+                    <span class="desc-jp">【カメラ切替】イン・アウトカメラの切り替え</span>
+                    <span class="desc-en">Switches between front (selfie) and rear cameras.</span>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>⚙️ Bottom Panel / 下部パネル</h2>
+            
+            <h3>🎚 Adjustment Sliders / 調整スライダー</h3>
+            <div class="card">
+                <div class="feature-item">
+                    <span class="btn-label">Ghost</span>
+                    <span class="desc-jp">【👻 ゴースト】お手本をカメラに半透明で重ね合わせる</span>
+                    <p>お手本動画をカメラ映像の上に半透明で重ねます。スライダーで透明度を0〜100%で調整可能です。<br>
+                    <span class="desc-en">Overlays the reference video with adjustable transparency.</span></p>
+                </div>
+                <div class="feature-item">
+                    <span class="btn-label">Brightness</span>
+                    <span class="desc-jp">【💡 明るさ】カメラ映像の明るさを調整する</span>
+                    <p>100%〜400%の範囲で調整でき、暗い室内での練習に威力を発揮します。<br>
+                    <span class="desc-en">Adjusts camera brightness (100%-400%) for better visibility in the dark.</span></p>
+                </div>
+            </div>
+
+            <h3>🎮 Transport Controls / 再生・録画コントロール</h3>
+            <div class="card">
+                <div class="feature-item">
+                    <span class="btn-label">Loop</span>
+                    <span class="desc-jp">【🔁 ループ再生】A-B区間を繰り返し再生</span>
+                    <span class="desc-en">Repeatedly plays the section between Points A and B.</span>
+                </div>
+                <div class="feature-item">
+                    <span class="btn-label">⏪ -5s / ⏩ +5s</span>
+                    <span class="desc-jp">【5秒戻る・進む】素早い位置調整</span>
+                    <span class="desc-en">Rewinds or fast-forwards the video by 5 seconds.</span>
+                </div>
+                <div class="feature-item">
+                    <span class="btn-label">▶/⏸ Play/Pause</span>
+                    <span class="desc-jp">【再生・一時停止】中央の大きな白いボタン</span>
+                    <span class="desc-en">Toggles between play and pause.</span>
+                </div>
+                <div class="feature-item">
+                    <span class="btn-label">Record</span>
+                    <span class="desc-jp">【⏺ 録画】地点Aから自動録画開始</span>
+                    <p>カウントダウン後に<strong>地点A（開始点）から自動的に</strong>録画が始まります。録画中はパルス点滅します。<br>
+                    <span class="desc-en">Starts recording from Point A after the countdown.</span></p>
+                </div>
+            </div>
+
+            <h3>🔧 Tools Scroll / ツールスクロール（横スクロールエリア）</h3>
+            <div class="card">
+                <h4>映像の調整 / Video Adjustments</h4>
+                <ul>
+                    <li><strong>🪞 Mirror Model:</strong> お手本を左右反転。鏡合わせの練習に。<span class="desc-en">Mirrors the reference video horizontally.</span></li>
+                    <li><strong>🤳 Mirror Me:</strong> 自分のカメラを左右反転。鏡感覚で練習。<span class="desc-en">Mirrors your camera feed for a mirror view.</span></li>
+                    <li><strong>🔄 Rotate:</strong> お手本を90度ずつ回転（0°〜270°）。<span class="desc-en">Rotates the reference video in 90° increments.</span></li>
+                    <li><strong>↔ Fit Mode:</strong> 画面いっぱい(Cover)か全体(Contain)を選択。<span class="desc-en">Toggles "Fill screen" or "Show all".</span></li>
+                </ul>
+                <h4>補助機能・設定 / Features & Settings</h4>
+                <ul>
+                    <li><strong># Grid:</strong> 補助線を表示（None〜16x16）。軸確認に。<span class="desc-en">Overlays guide lines for posture check.</span></li>
+                    <li><strong>🎬 Quality:</strong> 録画画質（Low/Standard/High）。通常はStandard推奨。<span class="desc-en">Sets recording bitrate (Standard is recommended).</span></li>
+                    <li><strong>⚡ Speed:</strong> 再生速度を変更（x0.5〜x1.5）。<span class="desc-en">Changes playback speed for slow-motion analysis.</span></li>
+                    <li><strong>⏱ Delay:</strong> カメラを遅らせて表示（0s〜5s）。動いた直後のセルフチェック用。<span class="desc-en">Delays the camera feed for immediate review.</span></li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>🔍 Zoom & Drag / ズーム・ドラッグ操作</h2>
+            <div class="card">
+                <ul>
+                    <li><strong>ピンチ操作 / Pinch:</strong> 2本の指で映像を拡大・縮小できます。<span class="desc-en">Pinch with two fingers to zoom in/out.</span></li>
+                    <li><strong>個別ズーム / Independent Zoom:</strong> 左右並列モードでは、お手本とカメラを個別にズーム可能です。<span class="desc-en">Zoom model and camera independently.</span></li>
+                    <li><strong>ドラッグ移動 / Drag:</strong> 拡大した映像を1本の指で自由に動かせます。<span class="desc-en">Drag to move and adjust the video position.</span></li>
+                    <li><strong>リアカメラ連携 / Hardware Zoom:</strong> iPhoneの光学ズームと連動し、高画質に拡大できます。<span class="desc-en">Works with device hardware zoom for clarity.</span></li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>💾 Recording & Saving / 録画と保存</h2>
+            <div class="card">
+                <ol>
+                    <li><strong>お手本読み込み / Load Video:</strong> 📂ボタンから動画を選択。</li>
+                    <li><strong>区間設定 / Set A-B:</strong> 📍Aと📍Bで録画範囲を指定。</li>
+                    <li><strong>録画開始 / Start:</strong> ⏺ボタンをタップ（カウントダウン後に自動開始）。</li>
+                    <li><strong>録画停止 / Stop:</strong> もう一度⏺ボタンをタップ。プレビューが表示されます。</li>
+                    <li><strong>保存・共有 / Save:</strong> 「Save/Share」を選択し、カメラロールへ保存。</li>
+                </ol>
+                <div class="warning-box">
+                    <strong>【重要 / Important】画質と音飛びについて</strong><br>
+                    倍速（x1.25/x1.5）での録画は、Safariの制約により音飛びが発生する場合があります。音声を重視する場合はx1.0での録画を推奨します。<br>
+                    <span class="desc-en">Recording at x1.25/x1.5 may cause audio skipping due to Safari's limits. Use x1.0 if audio quality is important.</span>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>📱 Important Settings / 重要：デバイス設定</h2>
+            <div class="card">
+                <ul>
+                    <li><strong>自動ロックのオフ / Disable Auto-Lock:</strong> 録画中の画面消灯を防ぐため、iPhoneの設定で「自動ロック」を「なし」に設定してください。<span class="desc-en">Set "Auto-Lock" to "Never" to prevent screen sleep.</span></li>
+                    <li><strong>明るさの固定 / Fixed Brightness:</strong> 視認性を上げるため、画面輝度を高めに固定することを推奨します。<span class="desc-en">Set high brightness for better visibility.</span></li>
+                    <li><strong>バッテリー / Battery:</strong> 高負荷な処理を行うため、充電しながらの使用をおすすめします。<span class="desc-en">Recommended to use while charging due to high processing load.</span></li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="info-box">
+            <strong>💡 Effective Usage / 効果的な使い方</strong>
+            <ul>
+                <li><strong>ゴースト機能 / Ghost Mode:</strong> お手本と自分を重ねて、関節の位置や角度のズレを視覚的に把握。<span class="desc-en">Overlay reference and your movements to catch misalignments.</span></li>
+                <li><strong>グリッド表示 / Grid View:</strong> 体の傾きやスイングの軸がブレていないか正確にチェック。<span class="desc-en">Check body tilt and axis wobble accurately.</span></li>
+                <li><strong>遅延機能 / Delay Function:</strong> 5秒遅延に設定し、1回動くたびに画面を見て即座に修正。<span class="desc-en">Set 5s delay to review and fix your form right after a movement.</span></li>
+                <li><strong>ズーム確認 / Zoom Check:</strong> ピンチ拡大で、手首の角度や足の運びなど細部を徹底分析。<span class="desc-en">Pinch to zoom and check fine details like wrist and foot angles.</span></li>
+            </ul>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-nav">
+            <a href="index.html">Home</a>
+            <a href="../../kids/menu.html">Kids Menu</a>
+            <a href="../privacy.html">Privacy Policy / 規約</a>
+            <a href="../contact.html">Contact</a>
+        </div>
+        <p class="copyright">&copy; 2026 KuniFami Soft Studio All Rights Reserved.</p>
+    </footer>
+</div>
+
+</body>
+</html>
