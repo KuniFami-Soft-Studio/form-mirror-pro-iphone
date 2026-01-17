@@ -252,8 +252,8 @@
         </div>
     </div>
 
-    <video id="videoA" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
-    <video id="videoB" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
+    <video id="videoA" class="hidden-vid" playsinline webkit-playsinline preload="auto" loop crossorigin="anonymous"></video>
+    <video id="videoB" class="hidden-vid" playsinline webkit-playsinline preload="auto" loop crossorigin="anonymous"></video>
 
     <script>
         const canvas = document.getElementById('mainCanvas');
@@ -293,7 +293,7 @@
         let poseBusy = false; 
         let poseTarget = 'A'; 
 
-        // 音声関連：ガベージコレクション対策としてグローバルにノードを保持
+        // 音声関連
         let audioCtx, srcA, srcB, gainNodeA, gainNodeB, destNode, audioMode = 0, analyserA, analyserB, dataA, dataB;
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
 
@@ -303,7 +303,10 @@
         function initApp() {
             document.getElementById('loginOverlay').style.display = 'none';
             setupAudio();
-            [vidA, vidB].forEach(v => { v.muted = true; v.load(); });
+            // 音声再生を有効化
+            vidA.muted = false; 
+            vidB.muted = false; 
+            [vidA, vidB].forEach(v => { v.load(); });
             resize();
             requestAnimationFrame(render);
             showUI();
@@ -333,7 +336,6 @@
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
                 
-                // ソース作成（グローバル変数に代入して消失を防ぐ）
                 srcA = audioCtx.createMediaElementSource(vidA);
                 srcB = audioCtx.createMediaElementSource(vidB);
                 
@@ -344,13 +346,11 @@
                 
                 destNode = audioCtx.createMediaStreamDestination();
                 
-                // Aの接続：Source -> Gain -> Destination & Analyser
                 srcA.connect(gainNodeA);
                 srcA.connect(analyserA);
                 gainNodeA.connect(audioCtx.destination);
                 gainNodeA.connect(destNode);
                 
-                // Bの接続
                 srcB.connect(gainNodeB);
                 srcB.connect(analyserB);
                 gainNodeB.connect(audioCtx.destination);
@@ -364,15 +364,10 @@
 
         function updateAudioLevels() {
             if(!gainNodeA || !gainNodeB) return;
-            
-            // Gain値を決定
             const volA = (audioMode === 0 || audioMode === 1) ? 1.0 : 0.0;
             const volB = (audioMode === 0 || audioMode === 2) ? 1.0 : 0.0;
-            
-            // すぐに反映
             gainNodeA.gain.value = volA;
             gainNodeB.gain.value = volB;
-            
             const labels = ["Mix", "A Only", "B Only", "Mute"];
             document.getElementById('audioModeBtn').innerText = "🔊 " + labels[audioMode];
         }
@@ -432,6 +427,7 @@
             document.getElementById('playBtn').innerText = "⏸";
             if(audioCtx.state === 'suspended') audioCtx.resume();
 
+            // 録画範囲の修正：キャンバスの内容のみをキャプチャ
             const canvasStream = canvas.captureStream(30);
             const audioStream = destNode.stream;
             const combinedStream = new MediaStream([
