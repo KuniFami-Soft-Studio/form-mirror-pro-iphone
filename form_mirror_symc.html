@@ -419,6 +419,7 @@
                 vidB.currentTime = loopStart - diff;
             }
 
+            // REC開始時も確実に両動画をplayさせる
             vidA.play(); vidB.play();
             document.getElementById('playBtn').innerText = "⏸";
 
@@ -598,9 +599,50 @@
             else { skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; document.getElementById('skelDotB').style.background = skelColors[skelColorIdxB]; }
         }
 
+        // iOS Safari対策済みの再生トグル
         async function togglePlay() {
             await setupAudio();
-            if(vidA.paused) { vidA.play(); vidB.play(); } else { vidA.pause(); vidB.pause(); }
+
+            if (vidA.paused) {
+                // [iOS Safari対策] ユーザーがボタンを押した瞬間に、全ビデオの再生許可を得る
+                const pA = vidA.play();
+                const pB = vidB.play();
+
+                // カウントダウンがある場合、一旦再生した直後に停止させてロック解除を保持する
+                if (countdownOptions[countdownIdx] > 0) {
+                    vidA.pause();
+                    vidB.pause();
+                    startPlaybackCountdown(); 
+                    return;
+                }
+
+                try { await Promise.all([pA, pB]); } catch(e) { console.error(e); }
+            } else {
+                vidA.pause();
+                vidB.pause();
+            }
+        }
+
+        // 再生専用のカウントダウンロジック
+        function startPlaybackCountdown() {
+            let c = countdownOptions[countdownIdx];
+            const cdOverlay = document.getElementById('countdownOverlay');
+            cdOverlay.style.display = 'block';
+            cdOverlay.innerText = c;
+            isCountingDown = true;
+            
+            const timer = setInterval(() => {
+                c--;
+                if(c > 0) { cdOverlay.innerText = c; } 
+                else {
+                    clearInterval(timer);
+                    cdOverlay.style.display = 'none';
+                    isCountingDown = false;
+                    // すでにUser Gesture配下で一度playしているため、ここでのplayは許可される
+                    vidA.play();
+                    vidB.play();
+                }
+            }, 1000);
         }
 
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
