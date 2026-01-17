@@ -24,7 +24,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
 
-    <title>Form mirror sync pro for iPhone ver 1.0</title>
+    <title>Form mirror sync pro for iPhone ver 1.1</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -154,7 +154,7 @@
     <div id="loginOverlay">
         <div class="app-title-container">
             <h1>Form mirror sync<span class="pro-badge">PRO</span></h1>
-            <p>for iPhone ver 1.0</p>
+            <p>for iPhone ver 1.1</p>
         </div>
         <button class="btn-start" onclick="initApp()">開始する / Start</button>
         <a href="privacy.html" class="policy-link">Privacy Policy / プライバシーポリシー</a>
@@ -302,6 +302,7 @@
         async function initApp() {
             document.getElementById('loginOverlay').style.display = 'none';
             await setupAudio();
+            // 初期ロード時に一瞬鳴らして許可を得る
             [vidA, vidB].forEach(v => { v.muted = false; v.load(); });
             resize();
             requestAnimationFrame(render);
@@ -387,12 +388,20 @@
 
         function handleRecClick() {
             if(isRecording) stopRecording();
-            else startRecordingSequence();
+            else startSequence('REC');
         }
 
-        function startRecordingSequence() {
-            if (countdownOptions[countdownIdx] > 0) {
-                let c = countdownOptions[countdownIdx];
+        // 録画と再生の両方で使える共通シーケンス
+        async function startSequence(mode) {
+            await setupAudio();
+            
+            // [重要] iOS Safari対策: ボタンクリック直後にplay()を呼んでおく
+            vidA.play(); vidB.play();
+            vidA.pause(); vidB.pause();
+
+            const delay = countdownOptions[countdownIdx];
+            if (delay > 0) {
+                let c = delay;
                 const cdOverlay = document.getElementById('countdownOverlay');
                 cdOverlay.style.display = 'block';
                 cdOverlay.innerText = c;
@@ -404,24 +413,29 @@
                         clearInterval(timer);
                         cdOverlay.style.display = 'none';
                         isCountingDown = false;
-                        executeRecording();
+                        if (mode === 'REC') executeRecording();
+                        else executePlay();
                     }
                 }, 1000);
-            } else { executeRecording(); }
+            } else {
+                if (mode === 'REC') executeRecording();
+                else executePlay();
+            }
+        }
+
+        function executePlay() {
+            vidA.play(); vidB.play();
+            document.getElementById('playBtn').innerText = "⏸";
         }
 
         async function executeRecording() {
-            await setupAudio();
-            
             if (loopEnabled && loopStart !== null) {
                 const diff = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart;
                 vidB.currentTime = loopStart - diff;
             }
 
-            // REC開始時も確実に両動画をplayさせる
-            vidA.play(); vidB.play();
-            document.getElementById('playBtn').innerText = "⏸";
+            executePlay();
 
             const canvasStream = canvas.captureStream(30), audioStream = destNode.stream;
             const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
@@ -599,50 +613,13 @@
             else { skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; document.getElementById('skelDotB').style.background = skelColors[skelColorIdxB]; }
         }
 
-        // iOS Safari対策済みの再生トグル
         async function togglePlay() {
-            await setupAudio();
-
-            if (vidA.paused) {
-                // [iOS Safari対策] ユーザーがボタンを押した瞬間に、全ビデオの再生許可を得る
-                const pA = vidA.play();
-                const pB = vidB.play();
-
-                // カウントダウンがある場合、一旦再生した直後に停止させてロック解除を保持する
-                if (countdownOptions[countdownIdx] > 0) {
-                    vidA.pause();
-                    vidB.pause();
-                    startPlaybackCountdown(); 
-                    return;
-                }
-
-                try { await Promise.all([pA, pB]); } catch(e) { console.error(e); }
+            if (!vidA.paused) {
+                vidA.pause(); vidB.pause();
+                document.getElementById('playBtn').innerText = "▶";
             } else {
-                vidA.pause();
-                vidB.pause();
+                startSequence('PLAY');
             }
-        }
-
-        // 再生専用のカウントダウンロジック
-        function startPlaybackCountdown() {
-            let c = countdownOptions[countdownIdx];
-            const cdOverlay = document.getElementById('countdownOverlay');
-            cdOverlay.style.display = 'block';
-            cdOverlay.innerText = c;
-            isCountingDown = true;
-            
-            const timer = setInterval(() => {
-                c--;
-                if(c > 0) { cdOverlay.innerText = c; } 
-                else {
-                    clearInterval(timer);
-                    cdOverlay.style.display = 'none';
-                    isCountingDown = false;
-                    // すでにUser Gesture配下で一度playしているため、ここでのplayは許可される
-                    vidA.play();
-                    vidB.play();
-                }
-            }, 1000);
         }
 
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
@@ -679,7 +656,7 @@
             document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
             if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
             if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
-            document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
+            if (!isCountingDown) document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
         }
 
         canvas.addEventListener('touchstart', e => {
