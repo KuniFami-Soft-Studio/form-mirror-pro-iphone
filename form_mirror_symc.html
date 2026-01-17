@@ -21,7 +21,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
 
-    <title>Form mirror sync pro for iPhone ver 1.1</title>
+    <title>Form mirror sync pro for iPhone ver 1.2</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -141,7 +141,7 @@
     <div id="loginOverlay">
         <div class="app-title-container">
             <h1>Form mirror sync<span class="pro-badge">PRO</span></h1>
-            <p>for iPhone ver 1.1</p>
+            <p>for iPhone ver 1.2</p>
         </div>
         <button class="btn-start" onclick="initApp()">開始する / Start</button>
         <a href="#" class="policy-link">Privacy Policy / プライバシーポリシー</a>
@@ -301,36 +301,51 @@
             const v = (target === 'A') ? vidA : vidB;
             const s = (target === 'A') ? seekA : seekB;
             v.src = URL.createObjectURL(file);
-            v.onloadedmetadata = () => { s.max = v.duration; v.pause(); };
+            v.onloadedmetadata = () => { 
+                s.max = v.duration; 
+                v.currentTime = 0;
+                v.pause(); 
+            };
             v.load();
         }
 
-        // --- 修正の要: 同期再生処理 ---
+        // --- 修正: 再生同期ロジックの改善 ---
         async function playVideosSync() {
             if (audioCtx?.state === 'suspended') await audioCtx.resume();
             
-            // 同時再生を試みる
+            // iOS対策: ミュート解除のタイミングを明示
+            vidA.muted = false;
+            vidB.muted = false;
+
             try {
-                await Promise.all([vidA.play(), vidB.play()]);
+                // Aを先に、直後にBを再生。エラー時は再度個別試行
+                await vidA.play();
+                await vidB.play();
             } catch (err) {
-                console.error("Playback failed, retrying muted...", err);
-                vidA.muted = true; vidB.muted = true;
-                await Promise.all([vidA.play(), vidB.play()]);
+                console.warn("Sync Playback Error, trying low-level sync", err);
+                vidA.play().catch(()=>{});
+                vidB.play().catch(()=>{});
             }
         }
 
         async function togglePlay() {
-            if (vidA.paused) await playVideosSync();
-            else { vidA.pause(); vidB.pause(); }
+            if (vidA.paused) {
+                await playVideosSync();
+            } else {
+                vidA.pause();
+                vidB.pause();
+            }
         }
 
-        // 片方が止まったらもう片方も止める（バッファリング対策）
-        vidA.onpause = () => { if (!vidB.paused) vidB.pause(); };
-        vidB.onpause = () => { if (!vidA.paused) vidA.pause(); };
+        // バッファリング等で片方が止まった際の連動
+        vidA.onpause = () => { if(!isRecording && !vidB.paused) vidB.pause(); };
+        vidB.onpause = () => { if(!isRecording && !vidA.paused) vidA.pause(); };
 
+        // --- 修正: 賢いカウントダウン設定 (3,5,7s) ---
         function cycleCountdown() {
             countdownIdx = (countdownIdx + 1) % countdownOptions.length;
-            document.getElementById('cdBtn').innerText = countdownOptions[countdownIdx] === 0 ? "⏳ No" : `⏳ ${countdownOptions[countdownIdx]}s`;
+            const val = countdownOptions[countdownIdx];
+            document.getElementById('cdBtn').innerText = val === 0 ? "⏳ No" : `⏳ ${val}s`;
         }
 
         function handleRecClick() {
@@ -339,44 +354,57 @@
         }
 
         function startRecordingSequence() {
-            let c = countdownOptions[countdownIdx];
-            if (c > 0) {
+            let count = countdownOptions[countdownIdx];
+            if (count > 0) {
                 const overlay = document.getElementById('countdownOverlay');
                 overlay.style.display = 'block';
-                overlay.innerText = c;
+                overlay.innerText = count;
                 isCountingDown = true;
+                
                 const timer = setInterval(() => {
-                    c--;
-                    if(c > 0) overlay.innerText = c;
-                    else {
+                    count--;
+                    if(count > 0) {
+                        overlay.innerText = count;
+                    } else {
                         clearInterval(timer);
                         overlay.style.display = 'none';
                         isCountingDown = false;
                         executeRecording();
                     }
                 }, 1000);
-            } else executeRecording();
+            } else {
+                executeRecording();
+            }
         }
 
         async function executeRecording() {
+            // ループ有効時は開始点にジャンプ
             if (loopEnabled && loopStart !== null) {
-                const diff = vidA.currentTime - vidB.currentTime;
+                const offset = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart;
-                vidB.currentTime = loopStart - diff;
+                vidB.currentTime = loopStart - offset;
             }
 
             await playVideosSync();
 
+            // Canvas録画開始
             const canvasStream = canvas.captureStream(30);
-            const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...destNode.stream.getAudioTracks()]);
+            const audioStream = destNode.stream;
+            const combinedStream = new MediaStream([
+                ...canvasStream.getVideoTracks(),
+                ...audioStream.getAudioTracks()
+            ]);
+
             recordedChunks = [];
             mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm;codecs=vp9' });
+            
             mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
                 lastBlob = new Blob(recordedChunks, { type: 'video/webm' });
                 previewVid.src = URL.createObjectURL(lastBlob);
                 saveContainer.style.display = 'flex';
             };
+
             mediaRecorder.start();
             isRecording = true;
             document.getElementById('recBtn').classList.add('recording');
@@ -393,21 +421,36 @@
             }
         }
 
-        // --- 以下描画・ユーティリティ (変更なし) ---
+        // --- 描画・ユーティリティ ---
         function render() {
             ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const w = canvas.width, h = canvas.height, ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
+            
+            // ループ処理
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
-                const off = vidA.currentTime - vidB.currentTime;
-                vidA.currentTime = loopStart || 0; vidB.currentTime = vidA.currentTime - off;
+                const offset = vidA.currentTime - vidB.currentTime;
+                vidA.currentTime = loopStart || 0;
+                vidB.currentTime = (loopStart || 0) - offset;
             }
+
             if(showSkeleton && pose && !poseBusy) {
                 let img = (poseTarget === 'A') ? vidA : vidB;
-                if(img.readyState >= 2) { poseBusy = true; pose.send({image: img}).then(() => { poseBusy = false; poseTarget = (poseTarget === 'A') ? 'B' : 'A'; }); }
-                else poseTarget = (poseTarget === 'A') ? 'B' : 'A';
+                if(img.readyState >= 2) { 
+                    poseBusy = true; 
+                    pose.send({image: img}).then(() => { 
+                        poseBusy = false; 
+                        poseTarget = (poseTarget === 'A') ? 'B' : 'A'; 
+                    }); 
+                } else {
+                    poseTarget = (poseTarget === 'A') ? 'B' : 'A';
+                }
             }
+
             let opA = 1, opB = 1;
-            if (flickerMode && layout === 2) { const t = Date.now() % 500; opA = t < 250 ? 1 : 0; opB = t < 250 ? 0 : 1; }
+            if (flickerMode && layout === 2) { 
+                const t = Date.now() % 500; opA = t < 250 ? 1 : 0; opB = t < 250 ? 0 : 1; 
+            }
+
             if (layout === 0) {
                 drawVid(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
                 if(showSkeleton) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, 1, transformA, vidA);
@@ -422,11 +465,15 @@
                 drawVid(vidB, 0, 0, w, h, mirrorB, opB, bri, transformB);
                 drawVid(vidA, 0, 0, w, h, mirrorA, flickerMode ? opA : Math.max(0.3, ghost), 100, transformA);
             }
+            
             if(gridSizes[gridIdx] > 0) drawGrid();
             drawAnnotations();
             drawWaveforms();
             updateTimeDisplay();
-            if(isRecording) { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill(); }
+            
+            if(isRecording) {
+                ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill();
+            }
             requestAnimationFrame(render);
         }
 
@@ -457,6 +504,7 @@
         };
 
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
+        
         function updateTimeDisplay() {
             document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
             document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
@@ -465,7 +513,6 @@
             document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
         }
 
-        // タッチ操作、その他の関数
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
         function seekRelative(s) { vidA.currentTime += s; vidB.currentTime += s; }
         function changeFrame(d) { vidA.currentTime += d*(1/30); vidB.currentTime += d*(1/30); }
@@ -526,6 +573,7 @@
         function cycleSkelColor(t) { if(t==='A') skelColorIdxA=(skelColorIdxA+1)%skelColors.length; else skelColorIdxB=(skelColorIdxB+1)%skelColors.length; }
         function cycleGrid() { gridIdx = (gridIdx+1)%gridSizes.length; }
         function toggleFlicker() { flickerMode = !flickerMode; if(flickerMode) layout=2; }
+        function toggleMirror(t) { if(t==='A') { mirrorA=!mirrorA; document.getElementById('mirrorABtn').classList.toggle('active', mirrorA); } else { mirrorB=!mirrorB; document.getElementById('mirrorBBtn').classList.toggle('active', mirrorB); } }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
         function setMetadata() { metadataText = prompt("Memo:", metadataText) || ""; }
 
