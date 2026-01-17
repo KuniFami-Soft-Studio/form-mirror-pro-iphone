@@ -331,24 +331,43 @@
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
-                const srcA = audioCtx.createMediaElementSource(vidA), srcB = audioCtx.createMediaElementSource(vidB);
-                gainNodeA = audioCtx.createGain(); gainNodeB = audioCtx.createGain();
-                analyserA = audioCtx.createAnalyser(); analyserB = audioCtx.createAnalyser();
+                
+                const srcA = audioCtx.createMediaElementSource(vidA);
+                const srcB = audioCtx.createMediaElementSource(vidB);
+                
+                gainNodeA = audioCtx.createGain();
+                gainNodeB = audioCtx.createGain();
+                analyserA = audioCtx.createAnalyser();
+                analyserB = audioCtx.createAnalyser();
+                
+                // 録画用の出力ノード
                 destNode = audioCtx.createMediaStreamDestination();
-                srcA.connect(gainNodeA); srcA.connect(analyserA);
-                gainNodeA.connect(audioCtx.destination); gainNodeA.connect(destNode);
-                srcB.connect(gainNodeB); srcB.connect(analyserB);
-                gainNodeB.connect(audioCtx.destination); gainNodeB.connect(destNode);
+                
+                // Aの接続
+                srcA.connect(gainNodeA);
+                srcA.connect(analyserA);
+                gainNodeA.connect(audioCtx.destination);
+                gainNodeA.connect(destNode);
+                
+                // Bの接続
+                srcB.connect(gainNodeB);
+                srcB.connect(analyserB);
+                gainNodeB.connect(audioCtx.destination);
+                gainNodeB.connect(destNode);
+                
                 updateAudioLevels();
-                dataA = new Uint8Array(analyserA.frequencyBinCount); dataB = new Uint8Array(analyserB.frequencyBinCount);
-            } catch(e) { console.warn("Audio Error"); }
+                dataA = new Uint8Array(analyserA.frequencyBinCount);
+                dataB = new Uint8Array(analyserB.frequencyBinCount);
+            } catch(e) { console.warn("Audio Error", e); }
         }
 
         function updateAudioLevels() {
             if(!gainNodeA) return;
             const now = audioCtx.currentTime;
-            gainNodeA.gain.setTargetAtTime((audioMode === 0 || audioMode === 1) ? 1 : 0, now, 0.1);
-            gainNodeB.gain.setTargetAtTime((audioMode === 0 || audioMode === 2) ? 1 : 0, now, 0.1);
+            // 再生モードに応じてゲインを調整
+            gainNodeA.gain.setTargetAtTime((audioMode === 0 || audioMode === 1) ? 1.0 : 0.0, now, 0.1);
+            gainNodeB.gain.setTargetAtTime((audioMode === 0 || audioMode === 2) ? 1.0 : 0.0, now, 0.1);
+            
             const labels = ["Mix", "A Only", "B Only", "Mute"];
             document.getElementById('audioModeBtn').innerText = "🔊 " + labels[audioMode];
         }
@@ -409,10 +428,15 @@
             document.getElementById('playBtn').innerText = "⏸";
             if(audioCtx.state === 'suspended') audioCtx.resume();
 
-            const canvasStream = canvas.captureStream(30), audioStream = destNode.stream;
-            const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
-            recordedChunks = [];
+            // 映像と音声を合成
+            const canvasStream = canvas.captureStream(30);
+            const audioStream = destNode.stream;
+            const combinedStream = new MediaStream([
+                ...canvasStream.getVideoTracks(), 
+                ...audioStream.getAudioTracks()
+            ]);
             
+            recordedChunks = [];
             let opt = { mimeType: 'video/mp4' };
             if (!MediaRecorder.isTypeSupported(opt.mimeType)) opt.mimeType = 'video/webm;codecs=vp9';
             
@@ -466,7 +490,6 @@
             previewVid.src = ""; lastBlob = null;
         }
 
-        // ビデオ描画関数（アスペクト比計算を共通化）
         const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => {
             if (v.readyState < 2 || alpha <= 0) return;
             ctx.save(); 
@@ -482,14 +505,12 @@
             const videoRatio = v.videoWidth / v.videoHeight;
             const areaRatio = w / h;
             let dw, dh;
-            // 高さのズレを防ぐため、常に「Cover」または「Fit」が領域中心に来るように計算
             if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
             
             ctx.drawImage(v, -dw/2, -dh/2, dw, dh); 
             ctx.restore();
         };
 
-        // スケルトン描画関数（アルファ値とトランスフォームの同期）
         const drawSkel = (res, x, y, w, h, mirror, alpha, trans, videoRef) => {
             if(!res || !res.poseLandmarks || videoRef.readyState < 2 || alpha <= 0) return;
             ctx.save();
@@ -528,14 +549,12 @@
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // ループ処理
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
                 const offset = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart || 0;
                 vidB.currentTime = vidA.currentTime - offset;
             }
 
-            // Pose推定
             if(showSkeleton && pose && !poseBusy) {
                 let imgToProcess = (poseTarget === 'A') ? (vidA.readyState >= 2 ? vidA : null) : (vidB.readyState >= 2 ? vidB : null);
                 if(imgToProcess) {
@@ -550,7 +569,6 @@
             let opA = 1, opB = 1;
             if (flickerMode && layout === 2) { const t = Date.now() % 500; if (t < 250) { opA = 1; opB = 0; } else { opA = 0; opB = 1; } }
 
-            // レイアウト別描画
             if (layout === 0) {
                 drawVid(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
                 if(showSkeleton) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, 1, transformA, vidA);
@@ -570,7 +588,6 @@
                     if(showSkeleton) drawSkel(poseResults.A, 0, h/2, w, h/2, mirrorA, ghost, transformA, vidA);
                 }
             } else {
-                // Layout 2: Overlap (Ghost)
                 const currentGhostAlpha = flickerMode ? opA : Math.max(0.3, ghost);
                 drawVid(vidB, 0, 0, w, h, mirrorB, (flickerMode ? opB : 1), bri, transformB);
                 if(showSkeleton && !flickerMode) drawSkel(poseResults.B, 0, 0, w, h, mirrorB, 1, transformB, vidB);
