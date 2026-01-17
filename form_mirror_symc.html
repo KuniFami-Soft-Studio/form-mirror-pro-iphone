@@ -395,14 +395,10 @@
             } else { executeRecording(); }
         }
 
-        /**
-         * 録画の仕組みを賢く書き換え（自動シンクロ機能）
-         */
         function executeRecording() {
             if (!audioCtx) setupAudio();
             
-            // 録画開始の瞬間に、現在の相対位置を維持したまま、
-            // ループ設定がある場合はループ開始点に強制シンクロさせる
+            // スマートシンクロ: ループ開始点がある場合はそこに飛ばして開始。なければ現在の位置から。
             if (loopEnabled && loopStart !== null) {
                 const diff = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart;
@@ -419,7 +415,6 @@
             
             let opt = { mimeType: 'video/mp4' };
             if (!MediaRecorder.isTypeSupported(opt.mimeType)) opt.mimeType = 'video/webm;codecs=vp9';
-            if (!MediaRecorder.isTypeSupported(opt.mimeType)) opt.mimeType = 'video/webm';
             
             try { mediaRecorder = new MediaRecorder(combinedStream, opt); } 
             catch (e) { mediaRecorder = new MediaRecorder(combinedStream); }
@@ -455,7 +450,7 @@
                 const ext = lastBlob.type.includes('mp4') ? 'mp4' : 'webm';
                 const file = new File([lastBlob], `FormMirror_${Date.now()}.${ext}`, { type: lastBlob.type });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file], title: 'Form Mirror Recording' });
+                    await navigator.share({ files: [file], title: 'Form Mirror Sync' });
                 } else {
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(lastBlob);
@@ -471,19 +466,78 @@
             previewVid.src = ""; lastBlob = null;
         }
 
+        // ビデオ描画関数（アスペクト比計算を共通化）
+        const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => {
+            if (v.readyState < 2 || alpha <= 0) return;
+            ctx.save(); 
+            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); 
+            ctx.globalAlpha = alpha; 
+            if (br != 100) ctx.filter = `brightness(${br}%)`;
+            
+            ctx.translate(x + w/2, y + h/2); 
+            ctx.scale(trans.scale, trans.scale); 
+            ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+
+            const videoRatio = v.videoWidth / v.videoHeight;
+            const areaRatio = w / h;
+            let dw, dh;
+            // 高さのズレを防ぐため、常に「Cover」または「Fit」が領域中心に来るように計算
+            if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
+            
+            ctx.drawImage(v, -dw/2, -dh/2, dw, dh); 
+            ctx.restore();
+        };
+
+        // スケルトン描画関数（アルファ値とトランスフォームの同期）
+        const drawSkel = (res, x, y, w, h, mirror, alpha, trans, videoRef) => {
+            if(!res || !res.poseLandmarks || videoRef.readyState < 2 || alpha <= 0) return;
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+            ctx.translate(x + w/2, y + h/2);
+            ctx.scale(trans.scale, trans.scale);
+            ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+
+            const videoRatio = videoRef.videoWidth / videoRef.videoHeight;
+            const areaRatio = w / h;
+            let dw, dh;
+            if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
+
+            const landmarks = res.poseLandmarks.map(l => ({ 
+                x: (l.x - 0.5) * dw, 
+                y: (l.y - 0.5) * dh, 
+                visibility: l.visibility 
+            }));
+
+            const color = (videoRef === vidA) ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
+            ctx.lineWidth = 4; ctx.strokeStyle = color; ctx.fillStyle = "#FF0000";
+            const connections = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]];
+            for (const [start, end] of connections) {
+                if(landmarks[start]?.visibility > 0.5 && landmarks[end]?.visibility > 0.5) {
+                    ctx.beginPath(); ctx.moveTo(landmarks[start].x, landmarks[start].y); ctx.lineTo(landmarks[end].x, landmarks[end].y); ctx.stroke();
+                }
+            }
+            for(const l of landmarks) { if(l.visibility > 0.5) { ctx.beginPath(); ctx.arc(l.x, l.y, 5, 0, 2*Math.PI); ctx.fill(); } }
+            ctx.restore();
+        };
+
         function render() {
             ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
+            // ループ処理
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
                 const offset = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart || 0;
                 vidB.currentTime = vidA.currentTime - offset;
             }
 
+            // Pose推定
             if(showSkeleton && pose && !poseBusy) {
-                let imgToProcess = (poseTarget === 'A') ? (vidA.readyState >= 2 && !vidA.paused ? vidA : null) : (vidB.readyState >= 2 && !vidB.paused ? vidB : null);
+                let imgToProcess = (poseTarget === 'A') ? (vidA.readyState >= 2 ? vidA : null) : (vidB.readyState >= 2 ? vidB : null);
                 if(imgToProcess) {
                     poseBusy = true; 
                     pose.send({image: imgToProcess}).then(() => { 
@@ -496,62 +550,33 @@
             let opA = 1, opB = 1;
             if (flickerMode && layout === 2) { const t = Date.now() % 500; if (t < 250) { opA = 1; opB = 0; } else { opA = 0; opB = 1; } }
 
-            const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => {
-                if (v.readyState < 2 || alpha <= 0) return;
-                ctx.save(); 
-                ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); 
-                ctx.globalAlpha = alpha; 
-                if (br != 100) ctx.filter = `brightness(${br}%)`;
-                ctx.translate(x + w/2, y + h/2); 
-                ctx.scale(trans.scale, trans.scale); 
-                ctx.translate(trans.x, trans.y);
-                if (mirror) ctx.scale(-1, 1);
-                const videoRatio = v.videoWidth / v.videoHeight, canvasRatio = w / h;
-                let dw, dh;
-                if (videoRatio > canvasRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
-                ctx.drawImage(v, -dw/2, -dh/2, dw, dh); 
-                ctx.restore();
-            };
-
-            const drawSkel = (res, x, y, w, h, mirror, trans, videoRef) => {
-                if(!res || !res.poseLandmarks || videoRef.readyState < 2) return;
-                ctx.save();
-                ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-                ctx.translate(x + w/2, y + h/2);
-                ctx.scale(trans.scale, trans.scale);
-                ctx.translate(trans.x, trans.y);
-                if (mirror) ctx.scale(-1, 1);
-                const videoRatio = videoRef.videoWidth / videoRef.videoHeight, dw = (videoRatio > w/h) ? h * videoRatio : w, dh = (videoRatio > w/h) ? h : w / videoRatio;
-                const landmarks = res.poseLandmarks.map(l => ({ x: (l.x - 0.5) * dw, y: (l.y - 0.5) * dh, visibility: l.visibility }));
-                const color = (videoRef === vidA) ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
-                ctx.lineWidth = 3; ctx.strokeStyle = color; ctx.fillStyle = "#FF0000";
-                const connections = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]];
-                for (const [start, end] of connections) {
-                    if(landmarks[start]?.visibility > 0.5 && landmarks[end]?.visibility > 0.5) {
-                        ctx.beginPath(); ctx.moveTo(landmarks[start].x, landmarks[start].y); ctx.lineTo(landmarks[end].x, landmarks[end].y); ctx.stroke();
-                    }
-                }
-                for(const l of landmarks) { if(l.visibility > 0.5) { ctx.beginPath(); ctx.arc(l.x, l.y, 4, 0, 2*Math.PI); ctx.fill(); } }
-                ctx.restore();
-            };
-
+            // レイアウト別描画
             if (layout === 0) {
                 drawVid(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
-                if(showSkeleton) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
+                if(showSkeleton) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, 1, transformA, vidA);
                 drawVid(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawSkel(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
-                if(ghost > 0) drawVid(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
+                if(showSkeleton) drawSkel(poseResults.B, w/2, 0, w/2, h, mirrorB, 1, transformB, vidB);
+                if(ghost > 0) {
+                    drawVid(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
+                    if(showSkeleton) drawSkel(poseResults.A, w/2, 0, w/2, h, mirrorA, ghost, transformA, vidA);
+                }
             } else if (layout === 1) {
                 drawVid(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
-                if(showSkeleton) drawSkel(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
+                if(showSkeleton) drawSkel(poseResults.A, 0, 0, w, h/2, mirrorA, 1, transformA, vidA);
                 drawVid(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawSkel(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
-                if(ghost > 0) drawVid(vidA, 0, h/2, w, h/2, mirrorA, ghost, 100, transformA);
+                if(showSkeleton) drawSkel(poseResults.B, 0, h/2, w, h/2, mirrorB, 1, transformB, vidB);
+                if(ghost > 0) {
+                    drawVid(vidA, 0, h/2, w, h/2, mirrorA, ghost, 100, transformA);
+                    if(showSkeleton) drawSkel(poseResults.A, 0, h/2, w, h/2, mirrorA, ghost, transformA, vidA);
+                }
             } else {
-                drawVid(vidB, 0, 0, w, h, mirrorB, opB, bri, transformB);
-                if(showSkeleton && !flickerMode) drawSkel(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
-                drawVid(vidA, 0, 0, w, h, mirrorA, (flickerMode ? opA : Math.max(0.3, ghost)), 100, transformA);
-                if(showSkeleton && (!flickerMode || opA > 0.5)) drawSkel(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
+                // Layout 2: Overlap (Ghost)
+                const currentGhostAlpha = flickerMode ? opA : Math.max(0.3, ghost);
+                drawVid(vidB, 0, 0, w, h, mirrorB, (flickerMode ? opB : 1), bri, transformB);
+                if(showSkeleton && !flickerMode) drawSkel(poseResults.B, 0, 0, w, h, mirrorB, 1, transformB, vidB);
+                
+                drawVid(vidA, 0, 0, w, h, mirrorA, currentGhostAlpha, 100, transformA);
+                if(showSkeleton && (!flickerMode || opA > 0.5)) drawSkel(poseResults.A, 0, 0, w, h, mirrorA, currentGhostAlpha, transformA, vidA);
             }
             
             if(gridSizes[gridIdx] > 0) drawGrid();
