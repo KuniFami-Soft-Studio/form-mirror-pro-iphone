@@ -299,10 +299,10 @@
         let lastTouchDist = 0, lastX = 0, lastY = 0, lastTwoFingerMidX = 0;
         let isTwoFingerGesture = false;
 
-        function initApp() {
+        async function initApp() {
             document.getElementById('loginOverlay').style.display = 'none';
-            setupAudio();
-            [vidA, vidB].forEach(v => { v.muted = true; v.load(); });
+            await setupAudio();
+            [vidA, vidB].forEach(v => { v.muted = false; v.load(); });
             resize();
             requestAnimationFrame(render);
             showUI();
@@ -326,8 +326,11 @@
             if(poseTarget === 'A') { poseResults.A = results; } else { poseResults.B = results; }
         }
 
-        function setupAudio() {
-            if (audioCtx) return;
+        async function setupAudio() {
+            if (audioCtx) {
+                if(audioCtx.state === 'suspended') await audioCtx.resume();
+                return;
+            }
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
@@ -339,9 +342,13 @@
                 gainNodeA.connect(audioCtx.destination); gainNodeA.connect(destNode);
                 srcB.connect(gainNodeB); srcB.connect(analyserB);
                 gainNodeB.connect(audioCtx.destination); gainNodeB.connect(destNode);
+                
+                vidA.muted = vidB.muted = false;
+                
                 updateAudioLevels();
                 dataA = new Uint8Array(analyserA.frequencyBinCount); dataB = new Uint8Array(analyserB.frequencyBinCount);
-            } catch(e) { console.warn("Audio Error"); }
+                if(audioCtx.state === 'suspended') await audioCtx.resume();
+            } catch(e) { console.warn("Audio Error", e); }
         }
 
         function updateAudioLevels() {
@@ -359,8 +366,16 @@
             if(!file) return;
             const url = URL.createObjectURL(file);
             const v = (target === 'A') ? vidA : vidB;
+            
+            v.pause();
+            v.removeAttribute('src');
+            v.load();
+            
             v.src = url; 
-            v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
+            v.onloadeddata = () => { 
+                if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; 
+                v.currentTime = 0;
+            };
             v.load();
         }
 
@@ -395,10 +410,9 @@
             } else { executeRecording(); }
         }
 
-        function executeRecording() {
-            if (!audioCtx) setupAudio();
+        async function executeRecording() {
+            await setupAudio();
             
-            // スマートシンクロ: ループ開始点がある場合はそこに飛ばして開始。なければ現在の位置から。
             if (loopEnabled && loopStart !== null) {
                 const diff = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart;
@@ -407,7 +421,6 @@
 
             vidA.play(); vidB.play();
             document.getElementById('playBtn').innerText = "⏸";
-            if(audioCtx.state === 'suspended') audioCtx.resume();
 
             const canvasStream = canvas.captureStream(30), audioStream = destNode.stream;
             const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
@@ -466,7 +479,6 @@
             previewVid.src = ""; lastBlob = null;
         }
 
-        // ビデオ描画関数（アスペクト比計算を共通化）
         const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => {
             if (v.readyState < 2 || alpha <= 0) return;
             ctx.save(); 
@@ -482,14 +494,12 @@
             const videoRatio = v.videoWidth / v.videoHeight;
             const areaRatio = w / h;
             let dw, dh;
-            // 高さのズレを防ぐため、常に「Cover」または「Fit」が領域中心に来るように計算
             if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
             
             ctx.drawImage(v, -dw/2, -dh/2, dw, dh); 
             ctx.restore();
         };
 
-        // スケルトン描画関数（アルファ値とトランスフォームの同期）
         const drawSkel = (res, x, y, w, h, mirror, alpha, trans, videoRef) => {
             if(!res || !res.poseLandmarks || videoRef.readyState < 2 || alpha <= 0) return;
             ctx.save();
@@ -528,14 +538,12 @@
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // ループ処理
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
                 const offset = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart || 0;
                 vidB.currentTime = vidA.currentTime - offset;
             }
 
-            // Pose推定
             if(showSkeleton && pose && !poseBusy) {
                 let imgToProcess = (poseTarget === 'A') ? (vidA.readyState >= 2 ? vidA : null) : (vidB.readyState >= 2 ? vidB : null);
                 if(imgToProcess) {
@@ -550,7 +558,6 @@
             let opA = 1, opB = 1;
             if (flickerMode && layout === 2) { const t = Date.now() % 500; if (t < 250) { opA = 1; opB = 0; } else { opA = 0; opB = 1; } }
 
-            // レイアウト別描画
             if (layout === 0) {
                 drawVid(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
                 if(showSkeleton) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, 1, transformA, vidA);
@@ -570,11 +577,9 @@
                     if(showSkeleton) drawSkel(poseResults.A, 0, h/2, w, h/2, mirrorA, ghost, transformA, vidA);
                 }
             } else {
-                // Layout 2: Overlap (Ghost)
                 const currentGhostAlpha = flickerMode ? opA : Math.max(0.3, ghost);
                 drawVid(vidB, 0, 0, w, h, mirrorB, (flickerMode ? opB : 1), bri, transformB);
                 if(showSkeleton && !flickerMode) drawSkel(poseResults.B, 0, 0, w, h, mirrorB, 1, transformB, vidB);
-                
                 drawVid(vidA, 0, 0, w, h, mirrorA, currentGhostAlpha, 100, transformA);
                 if(showSkeleton && (!flickerMode || opA > 0.5)) drawSkel(poseResults.A, 0, 0, w, h, mirrorA, currentGhostAlpha, transformA, vidA);
             }
@@ -594,7 +599,7 @@
         }
 
         async function togglePlay() {
-            if(audioCtx?.state === 'suspended') await audioCtx.resume();
+            await setupAudio();
             if(vidA.paused) { vidA.play(); vidB.play(); } else { vidA.pause(); vidB.pause(); }
         }
 
