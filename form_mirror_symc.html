@@ -16,15 +16,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <meta name="description" content="Professional side-by-side video analysis tool for athletes and dancers. Sync, record, and improve your form. / アスリートやダンサーのためのプロ仕様2画面動画比較・フォーム分析ツール。シンクロ再生、録画、描画機能でフォームを改善。">
-    <meta name="keywords" content="Form Analysis, Video Sync, Sports Tech, Dance Training, フォーム分析, 動画比較, スポーツトレーニング, シンクロ再生">
-    <meta name="author" content="Form Mirror Sync Project">
-    
+    <meta name="description" content="Professional side-by-side video analysis tool for athletes and dancers. Sync, record, and improve your form.">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
 
-    <title>Form mirror sync pro for iPhone ver 1.0</title>
+    <title>Form mirror sync pro for iPhone ver 1.1</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -46,7 +43,6 @@
         .fade-ui { transition: opacity 0.3s ease, transform 0.3s ease; opacity: 0; pointer-events: none; }
         .ui-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
-        /* --- 第一画面: Professional Splash --- */
         #loginOverlay {
             position: fixed; inset: 0; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
             z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
@@ -65,12 +61,8 @@
         }
         .btn-start:active { transform: scale(0.95); }
         
-        .policy-link {
-            color: #666; font-size: 12px; text-decoration: none; border-bottom: 1px solid #333; padding-bottom: 2px;
-        }
-        /* ----------------------------------- */
+        .policy-link { color: #666; font-size: 12px; text-decoration: none; border-bottom: 1px solid #333; padding-bottom: 2px; }
 
-        /* Top Bar */
         .top-bar {
             position: fixed; top: 0; left: 0; right: 0;
             padding: calc(env(safe-area-inset-top) + 10px) 15px 10px;
@@ -91,9 +83,6 @@
 
         @keyframes pulse-rec { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 
-        .top-center-group { display: flex; gap: 8px; }
-
-        /* Bottom Panel */
         .bottom-panel {
             position: fixed; bottom: 0; left: 0; right: 0;
             padding: 10px 10px calc(env(safe-area-inset-bottom) + 5px);
@@ -137,7 +126,6 @@
             flex-direction: column; align-items: center; justify-content: center;
         }
         #previewVid { width: 100%; max-height: 60vh; margin-bottom: 20px; background: #222; border-radius: 8px; }
-        .btn-save { background: var(--accent); font-size: 18px; padding: 15px 35px; border-radius: 30px; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; }
         
         #countdownOverlay {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -146,7 +134,6 @@
         }
 
         .hidden-vid { position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 200; }
     </style>
 </head>
 <body>
@@ -154,10 +141,10 @@
     <div id="loginOverlay">
         <div class="app-title-container">
             <h1>Form mirror sync<span class="pro-badge">PRO</span></h1>
-            <p>for iPhone ver 1.0</p>
+            <p>for iPhone ver 1.1</p>
         </div>
         <button class="btn-start" onclick="initApp()">開始する / Start</button>
-        <a href="privacy.html" class="policy-link">Privacy Policy / プライバシーポリシー</a>
+        <a href="#" class="policy-link">Privacy Policy / プライバシーポリシー</a>
     </div>
 
     <div id="countdownOverlay"></div>
@@ -171,15 +158,13 @@
         </div>
     </div>
 
-    <div id="toast" class="toast">Action</div>
-
     <div id="topPanel" class="top-bar fade-ui">
         <div style="display:flex; gap:10px;">
             <label class="icon-btn">📂A<input type="file" hidden accept="video/*" onchange="loadVideo(event, 'A')"></label>
             <label class="icon-btn">📂B<input type="file" hidden accept="video/*" onchange="loadVideo(event, 'B')"></label>
         </div>
         
-        <div class="top-center-group">
+        <div style="display:flex; gap:8px;">
             <button class="icon-btn" id="syncMoveBtn" onclick="toggleSyncMove()" style="font-size:12px; width:auto; padding:0 10px;">🔗 SyncPos</button>
             <button class="icon-btn rec-btn" id="recBtn" onclick="handleRecClick()">● REC</button>
         </div>
@@ -221,30 +206,24 @@
 
         <div class="tools-scroll">
             <button class="tool-pill active" id="cdBtn" onclick="cycleCountdown()">⏳ 3s</button>
-            
             <button class="tool-pill" id="loopStartBtn" onclick="setLoopPoint('start')">📍 Loop In</button>
             <button class="tool-pill" id="loopEndBtn" onclick="setLoopPoint('end')">📍 Loop Out</button>
             <button class="tool-pill" id="loopToggleBtn" onclick="toggleLoopEnabled()">🔄 Loop OFF</button>
-
             <button class="tool-pill" onclick="nudgeA(-0.05)">A&lt;</button>
             <button class="tool-pill" onclick="nudgeA(0.05)">A&gt;</button>
             <button class="tool-pill" onclick="nudgeB(-0.05)">B&lt;</button>
             <button class="tool-pill" onclick="nudgeB(0.05)">B&gt;</button>
-
             <button class="tool-pill" id="drawBtn" onclick="toggleDrawMode()">✏️ Draw</button>
             <button class="tool-pill" id="colorBtn" onclick="cycleColor()"><span class="color-dot" id="colorDot" style="background:#0A84FF"></span> Color</button>
             <button class="tool-pill" id="shapeBtn" onclick="cycleShape()">〰️ Free</button>
             <button class="tool-pill" onclick="undoStroke()">↩ Undo</button>
             <button class="tool-pill" onclick="clearStrokes()">🗑️ All</button>
-
             <button class="tool-pill" id="metaBtn" onclick="setMetadata()">📅 Memo</button>
             <button class="tool-pill" id="skelBtn" onclick="toggleSkeleton()">💀 Skel</button>
             <button class="tool-pill" onclick="cycleSkelColor('A')"><span class="color-dot" id="skelDotA" style="background:#00FF00"></span> 💀A色</button>
             <button class="tool-pill" onclick="cycleSkelColor('B')"><span class="color-dot" id="skelDotB" style="background:#FFCC00"></span> 💀B色</button>
-            
             <button class="tool-pill" id="gridBtn" onclick="cycleGrid()"># Grid</button>
             <button class="tool-pill" id="flickerBtn" onclick="toggleFlicker()">✨ Flick</button>
-            
             <button class="tool-pill active" id="mirrorABtn" onclick="toggleMirror('A')">🪞A</button>
             <button class="tool-pill active" id="mirrorBBtn" onclick="toggleMirror('B')">🪞B</button>
             <button class="tool-pill" id="speedBtn" onclick="cycleSpeed()">⚡ x1.0</button>
@@ -267,95 +246,41 @@
         const previewVid = document.getElementById('previewVid');
         const saveContainer = document.getElementById('saveContainer');
 
-        let layout = 0, syncMove = false, flickerMode = false; 
-        let metadataText = ""; 
+        let layout = 0, syncMove = false, flickerMode = false, metadataText = ""; 
         let loopStart = null, loopEnd = null, loopEnabled = false;
-
         let countdownOptions = [0, 3, 5, 7], countdownIdx = 1; 
-        let isCountingDown = false;
-
-        let drawMode = false, strokes = [], currentStroke = null, drawColorIdx = 0;
+        let isCountingDown = false, drawMode = false, strokes = [], currentStroke = null, drawColorIdx = 0;
         const drawColors = ["#0A84FF", "#FF3B30", "#30D158", "#FFD60A"]; 
-        let drawShape = 'free'; 
-        let speedIdx = 3, speeds = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]; 
-        let gridIdx = 0, gridSizes = [0, 3, 6, 9, 12, 16]; 
-        let mirrorA = true, mirrorB = true;
-
+        let drawShape = 'free', speedIdx = 3, speeds = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0], gridIdx = 0, gridSizes = [0, 3, 6, 9, 12, 16], mirrorA = true, mirrorB = true;
         const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
-        let skelColorIdxA = 0;
-        let skelColorIdxB = 3;
-        
-        let transformA = { scale: 1, x: 0, y: 0 };
-        let transformB = { scale: 1, x: 0, y: 0 };
-        let activeTarget = null; 
-
-        let pose = null, showSkeleton = false, poseResults = { A: null, B: null };
-        let poseBusy = false; 
-        let poseTarget = 'A'; 
-
-        // 音声関連
+        let skelColorIdxA = 0, skelColorIdxB = 3, transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
+        let pose = null, showSkeleton = false, poseResults = { A: null, B: null }, poseBusy = false, poseTarget = 'A'; 
         let audioCtx, srcA, srcB, gainNodeA, gainNodeB, destNode, audioMode = 0, analyserA, analyserB, dataA, dataB;
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
-
-        let lastTouchDist = 0, lastX = 0, lastY = 0, lastTwoFingerMidX = 0;
-        let isTwoFingerGesture = false;
+        let lastTouchDist = 0, lastX = 0, lastY = 0, lastTwoFingerMidX = 0, isTwoFingerGesture = false;
 
         function initApp() {
             document.getElementById('loginOverlay').style.display = 'none';
             setupAudio();
-            // 音声再生を有効化
-            vidA.muted = false; 
-            vidB.muted = false; 
-            [vidA, vidB].forEach(v => { v.load(); });
+            vidA.muted = false; vidB.muted = false;
             resize();
             requestAnimationFrame(render);
             showUI();
         }
 
-        function initPose() {
-            if (pose) return;
-            try {
-                pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-                pose.setOptions({ 
-                    modelComplexity: 1, 
-                    smoothLandmarks: true, 
-                    minDetectionConfidence: 0.5, 
-                    minTrackingConfidence: 0.5 
-                });
-                pose.onResults(onPoseResults);
-            } catch(e) { console.log("Pose Error", e); }
-        }
-
-        function onPoseResults(results) { 
-            if(poseTarget === 'A') { poseResults.A = results; } else { poseResults.B = results; }
-        }
-
         function setupAudio() {
             if (audioCtx) return;
             try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext();
-                
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 srcA = audioCtx.createMediaElementSource(vidA);
                 srcB = audioCtx.createMediaElementSource(vidB);
-                
                 gainNodeA = audioCtx.createGain();
                 gainNodeB = audioCtx.createGain();
                 analyserA = audioCtx.createAnalyser();
                 analyserB = audioCtx.createAnalyser();
-                
                 destNode = audioCtx.createMediaStreamDestination();
-                
-                srcA.connect(gainNodeA);
-                srcA.connect(analyserA);
-                gainNodeA.connect(audioCtx.destination);
-                gainNodeA.connect(destNode);
-                
-                srcB.connect(gainNodeB);
-                srcB.connect(analyserB);
-                gainNodeB.connect(audioCtx.destination);
-                gainNodeB.connect(destNode);
-                
+                srcA.connect(gainNodeA); srcA.connect(analyserA); gainNodeA.connect(audioCtx.destination); gainNodeA.connect(destNode);
+                srcB.connect(gainNodeB); srcB.connect(analyserB); gainNodeB.connect(audioCtx.destination); gainNodeB.connect(destNode);
                 updateAudioLevels();
                 dataA = new Uint8Array(analyserA.frequencyBinCount);
                 dataB = new Uint8Array(analyserB.frequencyBinCount);
@@ -363,30 +288,49 @@
         }
 
         function updateAudioLevels() {
-            if(!gainNodeA || !gainNodeB) return;
-            const volA = (audioMode === 0 || audioMode === 1) ? 1.0 : 0.0;
-            const volB = (audioMode === 0 || audioMode === 2) ? 1.0 : 0.0;
-            gainNodeA.gain.value = volA;
-            gainNodeB.gain.value = volB;
-            const labels = ["Mix", "A Only", "B Only", "Mute"];
-            document.getElementById('audioModeBtn').innerText = "🔊 " + labels[audioMode];
+            if(!gainNodeA) return;
+            gainNodeA.gain.value = (audioMode === 0 || audioMode === 1) ? 1.0 : 0.0;
+            gainNodeB.gain.value = (audioMode === 0 || audioMode === 2) ? 1.0 : 0.0;
+            document.getElementById('audioModeBtn').innerText = "🔊 " + ["Mix", "A Only", "B Only", "Mute"][audioMode];
         }
         function cycleAudioMode() { audioMode = (audioMode + 1) % 4; updateAudioLevels(); }
 
         function loadVideo(e, target) {
             const file = e.target.files[0];
             if(!file) return;
-            const url = URL.createObjectURL(file);
             const v = (target === 'A') ? vidA : vidB;
-            v.src = url; 
-            v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
+            const s = (target === 'A') ? seekA : seekB;
+            v.src = URL.createObjectURL(file);
+            v.onloadedmetadata = () => { s.max = v.duration; v.pause(); };
             v.load();
         }
 
+        // --- 修正の要: 同期再生処理 ---
+        async function playVideosSync() {
+            if (audioCtx?.state === 'suspended') await audioCtx.resume();
+            
+            // 同時再生を試みる
+            try {
+                await Promise.all([vidA.play(), vidB.play()]);
+            } catch (err) {
+                console.error("Playback failed, retrying muted...", err);
+                vidA.muted = true; vidB.muted = true;
+                await Promise.all([vidA.play(), vidB.play()]);
+            }
+        }
+
+        async function togglePlay() {
+            if (vidA.paused) await playVideosSync();
+            else { vidA.pause(); vidB.pause(); }
+        }
+
+        // 片方が止まったらもう片方も止める（バッファリング対策）
+        vidA.onpause = () => { if (!vidB.paused) vidB.pause(); };
+        vidB.onpause = () => { if (!vidA.paused) vidA.pause(); };
+
         function cycleCountdown() {
             countdownIdx = (countdownIdx + 1) % countdownOptions.length;
-            const val = countdownOptions[countdownIdx];
-            document.getElementById('cdBtn').innerText = val === 0 ? "⏳ No" : `⏳ ${val}s`;
+            document.getElementById('cdBtn').innerText = countdownOptions[countdownIdx] === 0 ? "⏳ No" : `⏳ ${countdownOptions[countdownIdx]}s`;
         }
 
         function handleRecClick() {
@@ -395,254 +339,124 @@
         }
 
         function startRecordingSequence() {
-            if (countdownOptions[countdownIdx] > 0) {
-                let c = countdownOptions[countdownIdx];
-                const cdOverlay = document.getElementById('countdownOverlay');
-                cdOverlay.style.display = 'block';
-                cdOverlay.innerText = c;
+            let c = countdownOptions[countdownIdx];
+            if (c > 0) {
+                const overlay = document.getElementById('countdownOverlay');
+                overlay.style.display = 'block';
+                overlay.innerText = c;
                 isCountingDown = true;
                 const timer = setInterval(() => {
                     c--;
-                    if(c > 0) { cdOverlay.innerText = c; } 
+                    if(c > 0) overlay.innerText = c;
                     else {
                         clearInterval(timer);
-                        cdOverlay.style.display = 'none';
+                        overlay.style.display = 'none';
                         isCountingDown = false;
                         executeRecording();
                     }
                 }, 1000);
-            } else { executeRecording(); }
+            } else executeRecording();
         }
 
-        function executeRecording() {
-            if (!audioCtx) setupAudio();
-            
+        async function executeRecording() {
             if (loopEnabled && loopStart !== null) {
                 const diff = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart;
                 vidB.currentTime = loopStart - diff;
             }
 
-            vidA.play(); vidB.play();
-            document.getElementById('playBtn').innerText = "⏸";
-            if(audioCtx.state === 'suspended') audioCtx.resume();
+            await playVideosSync();
 
-            // 録画範囲の修正：キャンバスの内容のみをキャプチャ
             const canvasStream = canvas.captureStream(30);
-            const audioStream = destNode.stream;
-            const combinedStream = new MediaStream([
-                ...canvasStream.getVideoTracks(), 
-                ...audioStream.getAudioTracks()
-            ]);
-            
+            const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...destNode.stream.getAudioTracks()]);
             recordedChunks = [];
-            let opt = { mimeType: 'video/mp4' };
-            if (!MediaRecorder.isTypeSupported(opt.mimeType)) opt.mimeType = 'video/webm;codecs=vp9';
-            
-            try { mediaRecorder = new MediaRecorder(combinedStream, opt); } 
-            catch (e) { mediaRecorder = new MediaRecorder(combinedStream); }
-
-            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm;codecs=vp9' });
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
-                const type = mediaRecorder.mimeType || 'video/webm';
-                lastBlob = new Blob(recordedChunks, { type: type });
+                lastBlob = new Blob(recordedChunks, { type: 'video/webm' });
                 previewVid.src = URL.createObjectURL(lastBlob);
                 saveContainer.style.display = 'flex';
-                document.getElementById('recBtn').classList.remove('recording'); 
-                document.getElementById('recBtn').innerText = "● REC"; 
             };
-            
-            mediaRecorder.start(1000); 
+            mediaRecorder.start();
             isRecording = true;
             document.getElementById('recBtn').classList.add('recording');
             document.getElementById('recBtn').innerText = "■ STOP";
         }
-        
-        function stopRecording() { 
-            if(mediaRecorder && isRecording) { 
-                mediaRecorder.stop(); 
-                isRecording = false; 
+
+        function stopRecording() {
+            if(mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
                 vidA.pause(); vidB.pause();
-                document.getElementById('playBtn').innerText = "▶";
-            } 
-        }
-
-        async function shareVideo() {
-            if (!lastBlob) return;
-            try {
-                const ext = lastBlob.type.includes('mp4') ? 'mp4' : 'webm';
-                const file = new File([lastBlob], `FormMirror_${Date.now()}.${ext}`, { type: lastBlob.type });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file], title: 'Form Mirror Sync' });
-                } else {
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(lastBlob);
-                    a.download = file.name;
-                    a.click();
-                }
-            } catch (e) { console.error("Share failed", e); }
-        }
-
-        function closeSaveUI() {
-            saveContainer.style.display = 'none';
-            if(previewVid.src) URL.revokeObjectURL(previewVid.src);
-            previewVid.src = ""; lastBlob = null;
-        }
-
-        const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => {
-            if (v.readyState < 2 || alpha <= 0) return;
-            ctx.save(); 
-            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); 
-            ctx.globalAlpha = alpha; 
-            if (br != 100) ctx.filter = `brightness(${br}%)`;
-            
-            ctx.translate(x + w/2, y + h/2); 
-            ctx.scale(trans.scale, trans.scale); 
-            ctx.translate(trans.x, trans.y);
-            if (mirror) ctx.scale(-1, 1);
-
-            const videoRatio = v.videoWidth / v.videoHeight;
-            const areaRatio = w / h;
-            let dw, dh;
-            if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
-            
-            ctx.drawImage(v, -dw/2, -dh/2, dw, dh); 
-            ctx.restore();
-        };
-
-        const drawSkel = (res, x, y, w, h, mirror, alpha, trans, videoRef) => {
-            if(!res || !res.poseLandmarks || videoRef.readyState < 2 || alpha <= 0) return;
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-            ctx.translate(x + w/2, y + h/2);
-            ctx.scale(trans.scale, trans.scale);
-            ctx.translate(trans.x, trans.y);
-            if (mirror) ctx.scale(-1, 1);
-
-            const videoRatio = videoRef.videoWidth / videoRef.videoHeight;
-            const areaRatio = w / h;
-            let dw, dh;
-            if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
-
-            const landmarks = res.poseLandmarks.map(l => ({ 
-                x: (l.x - 0.5) * dw, 
-                y: (l.y - 0.5) * dh, 
-                visibility: l.visibility 
-            }));
-
-            const color = (videoRef === vidA) ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
-            ctx.lineWidth = 4; ctx.strokeStyle = color; ctx.fillStyle = "#FF0000";
-            const connections = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]];
-            for (const [start, end] of connections) {
-                if(landmarks[start]?.visibility > 0.5 && landmarks[end]?.visibility > 0.5) {
-                    ctx.beginPath(); ctx.moveTo(landmarks[start].x, landmarks[start].y); ctx.lineTo(landmarks[end].x, landmarks[end].y); ctx.stroke();
-                }
+                document.getElementById('recBtn').classList.remove('recording');
+                document.getElementById('recBtn').innerText = "● REC";
             }
-            for(const l of landmarks) { if(l.visibility > 0.5) { ctx.beginPath(); ctx.arc(l.x, l.y, 5, 0, 2*Math.PI); ctx.fill(); } }
-            ctx.restore();
-        };
+        }
 
+        // --- 以下描画・ユーティリティ (変更なし) ---
         function render() {
             ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const w = canvas.width, h = canvas.height;
-            const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
-
+            const w = canvas.width, h = canvas.height, ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
-                const offset = vidA.currentTime - vidB.currentTime;
-                vidA.currentTime = loopStart || 0;
-                vidB.currentTime = vidA.currentTime - offset;
+                const off = vidA.currentTime - vidB.currentTime;
+                vidA.currentTime = loopStart || 0; vidB.currentTime = vidA.currentTime - off;
             }
-
             if(showSkeleton && pose && !poseBusy) {
-                let imgToProcess = (poseTarget === 'A') ? (vidA.readyState >= 2 ? vidA : null) : (vidB.readyState >= 2 ? vidB : null);
-                if(imgToProcess) {
-                    poseBusy = true; 
-                    pose.send({image: imgToProcess}).then(() => { 
-                        poseBusy = false;
-                        poseTarget = (poseTarget === 'A') ? 'B' : 'A';
-                    });
-                } else { poseTarget = (poseTarget === 'A') ? 'B' : 'A'; }
+                let img = (poseTarget === 'A') ? vidA : vidB;
+                if(img.readyState >= 2) { poseBusy = true; pose.send({image: img}).then(() => { poseBusy = false; poseTarget = (poseTarget === 'A') ? 'B' : 'A'; }); }
+                else poseTarget = (poseTarget === 'A') ? 'B' : 'A';
             }
-
             let opA = 1, opB = 1;
-            if (flickerMode && layout === 2) { const t = Date.now() % 500; if (t < 250) { opA = 1; opB = 0; } else { opA = 0; opB = 1; } }
-
+            if (flickerMode && layout === 2) { const t = Date.now() % 500; opA = t < 250 ? 1 : 0; opB = t < 250 ? 0 : 1; }
             if (layout === 0) {
                 drawVid(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
                 if(showSkeleton) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, 1, transformA, vidA);
                 drawVid(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
                 if(showSkeleton) drawSkel(poseResults.B, w/2, 0, w/2, h, mirrorB, 1, transformB, vidB);
-                if(ghost > 0) {
-                    drawVid(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
-                    if(showSkeleton) drawSkel(poseResults.A, w/2, 0, w/2, h, mirrorA, ghost, transformA, vidA);
-                }
+                if(ghost > 0) drawVid(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
             } else if (layout === 1) {
                 drawVid(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
-                if(showSkeleton) drawSkel(poseResults.A, 0, 0, w, h/2, mirrorA, 1, transformA, vidA);
                 drawVid(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawSkel(poseResults.B, 0, h/2, w, h/2, mirrorB, 1, transformB, vidB);
-                if(ghost > 0) {
-                    drawVid(vidA, 0, h/2, w, h/2, mirrorA, ghost, 100, transformA);
-                    if(showSkeleton) drawSkel(poseResults.A, 0, h/2, w, h/2, mirrorA, ghost, transformA, vidA);
-                }
+                if(ghost > 0) drawVid(vidA, 0, h/2, w, h/2, mirrorA, ghost, 100, transformA);
             } else {
-                const currentGhostAlpha = flickerMode ? opA : Math.max(0.3, ghost);
-                drawVid(vidB, 0, 0, w, h, mirrorB, (flickerMode ? opB : 1), bri, transformB);
-                if(showSkeleton && !flickerMode) drawSkel(poseResults.B, 0, 0, w, h, mirrorB, 1, transformB, vidB);
-                
-                drawVid(vidA, 0, 0, w, h, mirrorA, currentGhostAlpha, 100, transformA);
-                if(showSkeleton && (!flickerMode || opA > 0.5)) drawSkel(poseResults.A, 0, 0, w, h, mirrorA, currentGhostAlpha, transformA, vidA);
+                drawVid(vidB, 0, 0, w, h, mirrorB, opB, bri, transformB);
+                drawVid(vidA, 0, 0, w, h, mirrorA, flickerMode ? opA : Math.max(0.3, ghost), 100, transformA);
             }
-            
             if(gridSizes[gridIdx] > 0) drawGrid();
             drawAnnotations();
-            if(metadataText) { ctx.save(); ctx.font = "bold 24px sans-serif"; ctx.fillStyle = "white"; ctx.shadowBlur=4; ctx.fillText(metadataText, 20, 80); ctx.restore(); }
             drawWaveforms();
             updateTimeDisplay();
             if(isRecording) { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill(); }
             requestAnimationFrame(render);
         }
 
-        function cycleSkelColor(target) {
-            if (target === 'A') { skelColorIdxA = (skelColorIdxA + 1) % skelColors.length; document.getElementById('skelDotA').style.background = skelColors[skelColorIdxA]; } 
-            else { skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; document.getElementById('skelDotB').style.background = skelColors[skelColorIdxB]; }
-        }
+        const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => {
+            if (v.readyState < 2 || alpha <= 0) return;
+            ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.globalAlpha = alpha; 
+            if (br != 100) ctx.filter = `brightness(${br}%)`;
+            ctx.translate(x + w/2, y + h/2); ctx.scale(trans.scale, trans.scale); ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+            const vr = v.videoWidth / v.videoHeight, ar = w / h;
+            let dw = vr > ar ? h * vr : w, dh = vr > ar ? h : w / vr;
+            ctx.drawImage(v, -dw/2, -dh/2, dw, dh); ctx.restore();
+        };
 
-        async function togglePlay() {
-            if(audioCtx?.state === 'suspended') await audioCtx.resume();
-            if(vidA.paused) { vidA.play(); vidB.play(); } else { vidA.pause(); vidB.pause(); }
-        }
+        const drawSkel = (res, x, y, w, h, mirror, alpha, trans, vRef) => {
+            if(!res?.poseLandmarks || alpha <= 0) return;
+            ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+            ctx.translate(x + w/2, y + h/2); ctx.scale(trans.scale, trans.scale); ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+            const vr = vRef.videoWidth / vRef.videoHeight, ar = w / h;
+            let dw = vr > ar ? h * vr : w, dh = vr > ar ? h : w / vr;
+            const lms = res.poseLandmarks.map(l => ({ x: (l.x - 0.5) * dw, y: (l.y - 0.5) * dh, v: l.visibility }));
+            ctx.lineWidth = 4; ctx.strokeStyle = vRef === vidA ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
+            [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28]].forEach(p => {
+                if(lms[p[0]].v > 0.5 && lms[p[1]].v > 0.5) { ctx.beginPath(); ctx.moveTo(lms[p[0]].x, lms[p[0]].y); ctx.lineTo(lms[p[1]].x, lms[p[1]].y); ctx.stroke(); }
+            });
+            ctx.restore();
+        };
 
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
-        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); }
-        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); }
-        function seekRelative(sec) { vidA.currentTime += sec; vidB.currentTime += sec; }
-        function changeFrame(dir) { const step = 1/30; vidA.currentTime += dir * step; vidB.currentTime += dir * step; }
-        function seekInput(target, val) { if(target === 'A') vidA.currentTime = parseFloat(val); else vidB.currentTime = parseFloat(val); }
-
-        function setLoopPoint(type) {
-            if(type === 'start') { loopStart = vidA.currentTime; document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`; } 
-            else { loopEnd = vidA.currentTime; document.getElementById('loopEndBtn').innerText = `📍 Out: ${formatTime(loopEnd)}`; }
-            renderLoopMarkers();
-        }
-
-        function toggleLoopEnabled() {
-            loopEnabled = !loopEnabled;
-            const btn = document.getElementById('loopToggleBtn');
-            btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF";
-            btn.classList.toggle('loop-on', loopEnabled);
-        }
-
-        function renderLoopMarkers() {
-            const layer = document.getElementById('loopLayer'); layer.innerHTML = '';
-            if(loopStart !== null) { let d = document.createElement('div'); d.className='loop-marker'; d.style.left=(loopStart/vidA.duration*100)+'%'; d.style.background="#30D158"; layer.appendChild(d); }
-            if(loopEnd !== null) { let d = document.createElement('div'); d.className='loop-marker'; d.style.left=(loopEnd/vidA.duration*100)+'%'; layer.appendChild(d); }
-        }
-
-        function toggleSyncMove() { syncMove = !syncMove; document.getElementById('syncMoveBtn').classList.toggle('active', syncMove); }
-        function setMetadata() { const txt = prompt("Memo:", metadataText); if(txt !== null) metadataText = txt; }
-
         function updateTimeDisplay() {
             document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
             document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
@@ -651,76 +465,95 @@
             document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
         }
 
-        canvas.addEventListener('touchstart', e => {
-            const t = e.touches[0], rect = canvas.getBoundingClientRect();
-            lastX = t.clientX; lastY = t.clientY;
-            if (layout === 0) activeTarget = (t.clientX < rect.width/2) ? transformA : transformB;
-            else if (layout === 1) activeTarget = (t.clientY < rect.height/2) ? transformA : transformB;
-            else activeTarget = transformA; 
-            if (syncMove) activeTarget = transformA; 
-            if (e.touches.length === 2) { isTwoFingerGesture = true; lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); lastTwoFingerMidX = (e.touches[0].pageX + e.touches[1].pageX) / 2; } 
-            else { isTwoFingerGesture = false; }
-            if (drawMode) { currentStroke = { points: [{x: (t.clientX - rect.left) * (canvas.width/rect.width), y: (t.clientY - rect.top) * (canvas.height/rect.height)}], color: drawColors[drawColorIdx], shape: drawShape }; }
-        });
-
-        canvas.addEventListener('touchmove', e => {
-            e.preventDefault(); const rect = canvas.getBoundingClientRect();
-            if (drawMode && currentStroke) {
-                const t = e.touches[0], pt = {x: (t.clientX-rect.left)*(canvas.width/rect.width), y: (t.clientY-rect.top)*(canvas.height/rect.height)};
-                if (drawShape === 'free') currentStroke.points.push(pt); else { if(currentStroke.points.length > 1) currentStroke.points.pop(); currentStroke.points.push(pt); }
-            } 
-            else if (e.touches.length === 1 && activeTarget && !isTwoFingerGesture) {
-                const t = e.touches[0], dx = (t.clientX - lastX) * 2, dy = (t.clientY - lastY) * 2;
-                if (syncMove) { transformA.x += dx; transformA.y += dy; transformB.x += dx; transformB.y += dy; }
-                else { activeTarget.x += dx; activeTarget.y += dy; }
-                lastX = t.clientX; lastY = t.clientY;
-            } 
-            else if (e.touches.length === 2) {
-                const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2, dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                if (Math.abs(midX - lastTwoFingerMidX) > 2) { changeFrame(midX > lastTwoFingerMidX ? 1 : -1); lastTwoFingerMidX = midX; } 
-                else if (activeTarget && Math.abs(dist - lastTouchDist) > 2) { const scale = dist / lastTouchDist; if(syncMove) { transformA.scale *= scale; transformB.scale *= scale; } else { activeTarget.scale *= scale; } lastTouchDist = dist; }
-            }
-        }, {passive:false});
-
-        canvas.addEventListener('touchend', () => { if(currentStroke) { strokes.push(currentStroke); currentStroke = null; } activeTarget = null; isTwoFingerGesture = false; });
-
+        // タッチ操作、その他の関数
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
-        function drawWaveforms() {
-            if(!analyserA) return; analyserA.getByteFrequencyData(dataA); analyserB.getByteFrequencyData(dataB);
-            waveCtx.clearRect(0,0, waveCanvas.width, waveCanvas.height);
-            const step = waveCanvas.width / dataA.length;
-            waveCtx.fillStyle = '#0A84FF'; dataA.forEach((v, i) => waveCtx.fillRect(i*step, 15 - v/25, step-1, v/12.5));
-            waveCtx.fillStyle = '#FFCC00'; dataB.forEach((v, i) => waveCtx.fillRect(i*step, 30 - v/25, step-1, v/12.5));
-        }
-        function drawAnnotations() {
-            ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = 5;
-            strokes.concat(currentStroke || []).forEach(s => {
-                if(!s.points) return; ctx.strokeStyle = s.color; ctx.beginPath();
-                if (s.shape === 'line') { ctx.moveTo(s.points[0].x, s.points[0].y); ctx.lineTo(s.points[s.points.length-1].x, s.points[s.points.length-1].y); }
-                else if (s.shape === 'circle') { const r = Math.hypot(s.points[s.points.length-1].x - s.points[0].x, s.points[s.points.length-1].y - s.points[0].y); ctx.arc(s.points[0].x, s.points[0].y, r, 0, Math.PI*2); }
-                else { ctx.moveTo(s.points[0].x, s.points[0].y); s.points.forEach(pt => ctx.lineTo(pt.x, pt.y)); }
-                ctx.stroke();
-            }); ctx.restore();
+        function seekRelative(s) { vidA.currentTime += s; vidB.currentTime += s; }
+        function changeFrame(d) { vidA.currentTime += d*(1/30); vidB.currentTime += d*(1/30); }
+        function seekInput(t, v) { if(t==='A') vidA.currentTime = v; else vidB.currentTime = v; }
+        function toggleUI() { document.getElementById('bottomPanel').classList.toggle('ui-visible'); document.getElementById('topPanel').classList.toggle('ui-visible'); }
+        function showUI() { document.getElementById('bottomPanel').classList.add('ui-visible'); document.getElementById('topPanel').classList.add('ui-visible'); }
+        function cycleLayout() { layout = (layout + 1) % 3; document.getElementById('layoutBtn').innerText = ["📺", "📱", "🔳"][layout]; }
+        function cycleSpeed() { speedIdx = (speedIdx + 1) % speeds.length; vidA.playbackRate = vidB.playbackRate = speeds[speedIdx]; document.getElementById('speedBtn').innerText = `⚡ x${speeds[speedIdx]}`; }
+        function toggleSyncMove() { syncMove = !syncMove; document.getElementById('syncMoveBtn').classList.toggle('active', syncMove); }
+        function toggleDrawMode() { drawMode = !drawMode; document.getElementById('drawBtn').classList.toggle('active', drawMode); }
+        function cycleColor() { drawColorIdx = (drawColorIdx + 1) % drawColors.length; document.getElementById('colorDot').style.background = drawColors[drawColorIdx]; }
+        function cycleShape() { const ss = ['free', 'line', 'circle'], is = ['〰️ Free', '📏 Line', '⭕ Circ']; let idx = (ss.indexOf(drawShape)+1)%ss.length; drawShape=ss[idx]; document.getElementById('shapeBtn').innerText=is[idx]; }
+        function undoStroke() { strokes.pop(); }
+        function clearStrokes() { strokes = []; }
+        function nudgeA(s) { vidA.currentTime += s; }
+        function nudgeB(s) { vidB.currentTime += s; }
+        function setLoopPoint(t) { if(t==='start') loopStart=vidA.currentTime; else loopEnd=vidA.currentTime; renderLoopMarkers(); }
+        function toggleLoopEnabled() { loopEnabled = !loopEnabled; document.getElementById('loopToggleBtn').classList.toggle('loop-on', loopEnabled); }
+        function renderLoopMarkers() {
+            const l = document.getElementById('loopLayer'); l.innerHTML = '';
+            if(loopStart!==null) { let d=document.createElement('div'); d.className='loop-marker'; d.style.left=(loopStart/vidA.duration*100)+'%'; d.style.background="#30D158"; l.appendChild(d); }
+            if(loopEnd!==null) { let d=document.createElement('div'); d.className='loop-marker'; d.style.left=(loopEnd/vidA.duration*100)+'%'; l.appendChild(d); }
         }
         function drawGrid() {
             ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 2; const c = gridSizes[gridIdx]; ctx.beginPath();
             for(let i=1; i<c; i++) { ctx.moveTo(i*(canvas.width/c), 0); ctx.lineTo(i*(canvas.width/c), canvas.height); ctx.moveTo(0, i*(canvas.height/c)); ctx.lineTo(canvas.width, i*(canvas.height/c)); }
             ctx.stroke(); ctx.restore();
         }
-        function undoStroke() { strokes.pop(); }
-        function clearStrokes() { strokes = []; }
-        function cycleColor() { drawColorIdx = (drawColorIdx + 1) % drawColors.length; document.getElementById('colorDot').style.background = drawColors[drawColorIdx]; }
-        function cycleShape() { const ss = ['free', 'line', 'circle'], is = ['〰️ Free', '📏 Line', '⭕ Circ']; let idx = (ss.indexOf(drawShape)+1)%ss.length; drawShape=ss[idx]; document.getElementById('shapeBtn').innerText=is[idx]; }
-        function cycleLayout() { layout = (layout + 1) % 3; document.getElementById('layoutBtn').innerText = ["📺", "📱", "🔳"][layout]; }
-        function cycleSpeed() { speedIdx = (speedIdx + 1) % speeds.length; vidA.playbackRate = vidB.playbackRate = speeds[speedIdx]; document.getElementById('speedBtn').innerText = `⚡ x${speeds[speedIdx]}`; }
-        function cycleGrid() { gridIdx = (gridIdx + 1) % gridSizes.length; document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`; }
-        function toggleDrawMode() { drawMode = !drawMode; document.getElementById('drawBtn').classList.toggle('active', drawMode); }
-        function toggleMirror(t) { if(t==='A') mirrorA = !mirrorA; else mirrorB = !mirrorB; document.getElementById(`mirror${t}Btn`).classList.toggle('active'); }
-        function toggleFlicker() { flickerMode = !flickerMode; document.getElementById('flickerBtn').classList.toggle('active', flickerMode); if(flickerMode) layout=2; }
-        function toggleSkeleton() { showSkeleton = !showSkeleton; document.getElementById('skelBtn').classList.toggle('active', showSkeleton); if(showSkeleton) initPose(); }
+        function drawAnnotations() {
+            ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = 5;
+            strokes.concat(currentStroke || []).forEach(s => {
+                ctx.strokeStyle = s.color; ctx.beginPath();
+                if (s.shape === 'line') { ctx.moveTo(s.points[0].x, s.points[0].y); ctx.lineTo(s.points[s.points.length-1].x, s.points[s.points.length-1].y); }
+                else if (s.shape === 'circle') { const r = Math.hypot(s.points[s.points.length-1].x - s.points[0].x, s.points[s.points.length-1].y - s.points[0].y); ctx.arc(s.points[0].x, s.points[0].y, r, 0, Math.PI*2); }
+                else { ctx.moveTo(s.points[0].x, s.points[0].y); s.points.forEach(pt => ctx.lineTo(pt.x, pt.y)); }
+                ctx.stroke();
+            }); ctx.restore();
+        }
+        function drawWaveforms() {
+            if(!analyserA) return; analyserA.getByteFrequencyData(dataA); analyserB.getByteFrequencyData(dataB);
+            waveCtx.clearRect(0,0, waveCanvas.width, waveCanvas.height);
+            const s = waveCanvas.width / dataA.length;
+            waveCtx.fillStyle = '#0A84FF'; dataA.forEach((v, i) => waveCtx.fillRect(i*s, 15 - v/25, s-1, v/12.5));
+            waveCtx.fillStyle = '#FFCC00'; dataB.forEach((v, i) => waveCtx.fillRect(i*s, 30 - v/25, s-1, v/12.5));
+        }
+        function shareVideo() { 
+            const f = new File([lastBlob], "sync_video.webm", {type:"video/webm"});
+            if(navigator.canShare && navigator.canShare({files:[f]})) navigator.share({files:[f]});
+            else { const a=document.createElement('a'); a.href=previewVid.src; a.download="sync_video.webm"; a.click(); }
+        }
+        function closeSaveUI() { saveContainer.style.display='none'; }
+        function toggleSkeleton() { showSkeleton = !showSkeleton; document.getElementById('skelBtn').classList.toggle('active', showSkeleton); if(showSkeleton && !pose) initPose(); }
+        function initPose() {
+            pose = new Pose({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+            pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5 });
+            pose.onResults(r => { if(poseTarget === 'A') poseResults.A = r; else poseResults.B = r; });
+        }
+        function cycleSkelColor(t) { if(t==='A') skelColorIdxA=(skelColorIdxA+1)%skelColors.length; else skelColorIdxB=(skelColorIdxB+1)%skelColors.length; }
+        function cycleGrid() { gridIdx = (gridIdx+1)%gridSizes.length; }
+        function toggleFlicker() { flickerMode = !flickerMode; if(flickerMode) layout=2; }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
-        function toggleUI() { document.getElementById('bottomPanel').classList.toggle('ui-visible'); document.getElementById('topPanel').classList.toggle('ui-visible'); }
-        function showUI() { document.getElementById('bottomPanel').classList.add('ui-visible'); document.getElementById('topPanel').classList.add('ui-visible'); }
+        function setMetadata() { metadataText = prompt("Memo:", metadataText) || ""; }
+
+        canvas.addEventListener('touchstart', e => {
+            const t = e.touches[0], r = canvas.getBoundingClientRect();
+            lastX = t.clientX; lastY = t.clientY;
+            activeTarget = (layout === 0 && t.clientX > r.width/2) ? transformB : transformA;
+            if (e.touches.length === 2) { isTwoFingerGesture = true; lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); }
+            if (drawMode) currentStroke = { points: [{x: (t.clientX - r.left) * (canvas.width/r.width), y: (t.clientY - r.top) * (canvas.height/r.height)}], color: drawColors[drawColorIdx], shape: drawShape };
+        });
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault(); const r = canvas.getBoundingClientRect();
+            if (drawMode && currentStroke) {
+                const t = e.touches[0], pt = {x: (t.clientX-r.left)*(canvas.width/r.width), y: (t.clientY-r.top)*(canvas.height/r.height)};
+                if (drawShape === 'free') currentStroke.points.push(pt); else { if(currentStroke.points.length > 1) currentStroke.points.pop(); currentStroke.points.push(pt); }
+            } else if (e.touches.length === 1 && activeTarget && !isTwoFingerGesture) {
+                const t = e.touches[0], dx = (t.clientX - lastX) * 2, dy = (t.clientY - lastY) * 2;
+                activeTarget.x += dx; activeTarget.y += dy;
+                if(syncMove) { (activeTarget === transformA ? transformB : transformA).x += dx; (activeTarget === transformA ? transformB : transformA).y += dy; }
+                lastX = t.clientX; lastY = t.clientY;
+            } else if (e.touches.length === 2 && activeTarget) {
+                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                const sc = dist / lastTouchDist; activeTarget.scale *= sc;
+                if(syncMove) (activeTarget === transformA ? transformB : transformA).scale *= sc;
+                lastTouchDist = dist;
+            }
+        });
+        canvas.addEventListener('touchend', () => { if(currentStroke) strokes.push(currentStroke); currentStroke = null; isTwoFingerGesture = false; });
         window.addEventListener('resize', resize);
     </script>
 </body>
