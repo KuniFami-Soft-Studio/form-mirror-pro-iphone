@@ -293,7 +293,8 @@
         let poseBusy = false; 
         let poseTarget = 'A'; 
 
-        let audioCtx, gainNodeA, gainNodeB, destNode, audioMode = 0, analyserA, analyserB, dataA, dataB;
+        // 音声関連：ガベージコレクション対策としてグローバルにノードを保持
+        let audioCtx, srcA, srcB, gainNodeA, gainNodeB, destNode, audioMode = 0, analyserA, analyserB, dataA, dataB;
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
 
         let lastTouchDist = 0, lastX = 0, lastY = 0, lastTwoFingerMidX = 0;
@@ -332,18 +333,18 @@
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
                 
-                const srcA = audioCtx.createMediaElementSource(vidA);
-                const srcB = audioCtx.createMediaElementSource(vidB);
+                // ソース作成（グローバル変数に代入して消失を防ぐ）
+                srcA = audioCtx.createMediaElementSource(vidA);
+                srcB = audioCtx.createMediaElementSource(vidB);
                 
                 gainNodeA = audioCtx.createGain();
                 gainNodeB = audioCtx.createGain();
                 analyserA = audioCtx.createAnalyser();
                 analyserB = audioCtx.createAnalyser();
                 
-                // 録画用の出力ノード
                 destNode = audioCtx.createMediaStreamDestination();
                 
-                // Aの接続
+                // Aの接続：Source -> Gain -> Destination & Analyser
                 srcA.connect(gainNodeA);
                 srcA.connect(analyserA);
                 gainNodeA.connect(audioCtx.destination);
@@ -362,11 +363,15 @@
         }
 
         function updateAudioLevels() {
-            if(!gainNodeA) return;
-            const now = audioCtx.currentTime;
-            // 再生モードに応じてゲインを調整
-            gainNodeA.gain.setTargetAtTime((audioMode === 0 || audioMode === 1) ? 1.0 : 0.0, now, 0.1);
-            gainNodeB.gain.setTargetAtTime((audioMode === 0 || audioMode === 2) ? 1.0 : 0.0, now, 0.1);
+            if(!gainNodeA || !gainNodeB) return;
+            
+            // Gain値を決定
+            const volA = (audioMode === 0 || audioMode === 1) ? 1.0 : 0.0;
+            const volB = (audioMode === 0 || audioMode === 2) ? 1.0 : 0.0;
+            
+            // すぐに反映
+            gainNodeA.gain.value = volA;
+            gainNodeB.gain.value = volB;
             
             const labels = ["Mix", "A Only", "B Only", "Mute"];
             document.getElementById('audioModeBtn').innerText = "🔊 " + labels[audioMode];
@@ -417,7 +422,6 @@
         function executeRecording() {
             if (!audioCtx) setupAudio();
             
-            // スマートシンクロ: ループ開始点がある場合はそこに飛ばして開始。なければ現在の位置から。
             if (loopEnabled && loopStart !== null) {
                 const diff = vidA.currentTime - vidB.currentTime;
                 vidA.currentTime = loopStart;
@@ -428,7 +432,6 @@
             document.getElementById('playBtn').innerText = "⏸";
             if(audioCtx.state === 'suspended') audioCtx.resume();
 
-            // 映像と音声を合成
             const canvasStream = canvas.captureStream(30);
             const audioStream = destNode.stream;
             const combinedStream = new MediaStream([
