@@ -18,7 +18,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Pro Max - Audio Final Fix</title>
+    <title>Form Mirror Pro Max - Loop Fix</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -137,8 +137,8 @@
 
     <div id="topPanel" class="top-bar fade-ui">
         <div style="display:flex; gap:10px;">
-            <label class="icon-btn">📂A<input type="file" hidden accept="video/*" onchange="loadVideo(event, 'A')"></label>
-            <label class="icon-btn">📂B<input type="file" hidden accept="video/*" onchange="loadVideo(event, 'B')"></label>
+            <label class="icon-btn">📂A<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'A')"></label>
+            <label class="icon-btn">📂B<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'B')"></label>
         </div>
         <div style="display:flex; gap:8px;">
             <button class="icon-btn" id="syncMoveBtn" onclick="toggleSyncMove()" style="font-size:12px; width:auto; padding:0 10px;">🔗 SyncPos</button>
@@ -195,7 +195,11 @@
             <button class="tool-pill" onclick="clearStrokes()">🗑️ All</button>
             <button class="tool-pill" id="metaBtn" onclick="setMetadata()">📅 Memo</button>
             <button class="tool-pill" id="skelBtn" onclick="toggleSkeleton()">💀 Skel</button>
+            
             <button class="tool-pill" id="gridBtn" onclick="cycleGrid()"># Grid</button>
+            <button class="tool-pill" id="gridWidthBtn" onclick="cycleGridWidth()">📏 1px</button>
+            <button class="tool-pill" id="gridColorBtn" onclick="cycleGridColor()">🎨 白</button>
+
             <button class="tool-pill active" id="mirrorABtn" onclick="toggleMirror('A')">🪞A</button>
             <button class="tool-pill active" id="mirrorBBtn" onclick="toggleMirror('B')">🪞B</button>
             <button class="tool-pill" id="speedBtn" onclick="cycleSpeed()">⚡ x1.0</button>
@@ -223,11 +227,19 @@
         let drawMode = false, strokes = [], currentStroke = null, drawColorIdx = 0;
         const drawColors = ["#0A84FF", "#FF3B30", "#30D158", "#FFD60A"]; 
         let drawShape = 'free', speedIdx = 3, speeds = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]; 
+        
+        // Grid関連
         let gridIdx = 0, gridSizes = [0, 3, 6, 9, 12, 16]; 
+        let gridColorIdx = 0;
+        const gridColors = ["rgba(255,255,255,0.5)", "#FF3B30", "#30D158", "#0A84FF", "#FFFF00"]; // 白, 赤, 緑, 青, 黄
+        const gridColorNames = ["白", "赤", "緑", "青", "黄"];
+        let gridWidthIdx = 0;
+        const gridWidths = [1, 3, 5, 8];
+
         let mirrorA = true, mirrorB = true;
         let transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
         
-        // Pose / Skel関連変数（追加）
+        // Pose / Skel関連変数
         let pose = null, showSkeleton = false, poseResults = { A: null, B: null }, poseBusy = false, poseTarget = 'A'; 
         const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
         let skelColorIdxA = 0; // 初期: 緑
@@ -250,7 +262,6 @@
             showUI();
         }
 
-        // --- Skel (Mediapipe) 追加機能 ---
         function initPose() {
             if (pose) return;
             try {
@@ -279,7 +290,6 @@
             if(showSkeleton) initPose(); 
         }
 
-        // --- Memo (Metadata) 追加機能 ---
         function setMetadata() { 
             const txt = prompt("Memo:", metadataText || new Date().toLocaleDateString()); 
             if(txt !== null) metadataText = txt; 
@@ -524,16 +534,26 @@
             waveCtx.fillStyle = '#0A84FF'; dataA.forEach((v, i) => waveCtx.fillRect(i*step, 34 - v/8, step-1, v/8));
         }
         
-        // --- Grid 修正機能 ---
+        // --- Grid 機能 ---
         function cycleGrid() { 
             gridIdx = (gridIdx + 1) % gridSizes.length; 
             document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`;
         }
+
+        function cycleGridWidth() {
+            gridWidthIdx = (gridWidthIdx + 1) % gridWidths.length;
+            document.getElementById('gridWidthBtn').innerText = `📏 ${gridWidths[gridWidthIdx]}px`;
+        }
+
+        function cycleGridColor() {
+            gridColorIdx = (gridColorIdx + 1) % gridColors.length;
+            document.getElementById('gridColorBtn').innerText = `🎨 ${gridColorNames[gridColorIdx]}`;
+        }
         
         function drawGrid() {
             ctx.save(); 
-            ctx.strokeStyle = "rgba(255,255,255,0.3)"; 
-            ctx.lineWidth = 1; 
+            ctx.strokeStyle = gridColors[gridColorIdx]; // 設定した色
+            ctx.lineWidth = gridWidths[gridWidthIdx];   // 設定した太さ
             const c = gridSizes[gridIdx]; 
             ctx.beginPath();
             for(let i=1; i<c; i++) { 
@@ -564,8 +584,44 @@
         function undoStroke() { strokes.pop(); }
         function clearStrokes() { strokes = []; }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
-        function setLoopPoint(t) { if(t==='start') loopStart=vidA.currentTime; else loopEnd=vidA.currentTime; }
-        function toggleLoopEnabled() { loopEnabled = !loopEnabled; }
+
+        // --- Loop 機能修正版 (時間表示＆マーカー復旧) ---
+        function setLoopPoint(t) { 
+            if(t==='start') { 
+                loopStart = vidA.currentTime; 
+                document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`;
+            } else { 
+                loopEnd = vidA.currentTime; 
+                document.getElementById('loopEndBtn').innerText = `📍 Out: ${formatTime(loopEnd)}`;
+            }
+            renderLoopMarkers();
+        }
+
+        function renderLoopMarkers() {
+            const layer = document.getElementById('loopLayer'); 
+            layer.innerHTML = '';
+            if(loopStart !== null) { 
+                let d = document.createElement('div'); 
+                d.className='loop-marker'; 
+                d.style.left=(loopStart/vidA.duration*100)+'%'; 
+                d.style.background="#30D158"; 
+                layer.appendChild(d); 
+            }
+            if(loopEnd !== null) { 
+                let d = document.createElement('div'); 
+                d.className='loop-marker'; 
+                d.style.left=(loopEnd/vidA.duration*100)+'%'; 
+                layer.appendChild(d); 
+            }
+        }
+        
+        function toggleLoopEnabled() { 
+            loopEnabled = !loopEnabled;
+            const btn = document.getElementById('loopToggleBtn');
+            btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF";
+            btn.classList.toggle('loop-on', loopEnabled);
+        }
+
         function closeSaveUI() { saveContainer.style.display = 'none'; previewVid.src = ""; }
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
 
