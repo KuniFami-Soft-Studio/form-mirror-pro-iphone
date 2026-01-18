@@ -18,7 +18,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Pro Max - Skel Custom</title>
+    <title>Form Mirror Pro Max - Audio Resume Fix</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -231,7 +231,6 @@
         const drawColors = ["#0A84FF", "#FF3B30", "#30D158", "#FFD60A"]; 
         let drawShape = 'free', speedIdx = 3, speeds = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]; 
         
-        // Grid関連
         let gridIdx = 0, gridSizes = [0, 3, 6, 9, 12, 16]; 
         let gridColorIdx = 0;
         const gridColors = ["rgba(255,255,255,0.5)", "#FF3B30", "#30D158", "#0A84FF", "#FFFF00"]; 
@@ -242,17 +241,13 @@
         let mirrorA = true, mirrorB = true;
         let transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
         
-        // Pose / Skel関連変数
         let pose = null, showSkeleton = false, poseResults = { A: null, B: null }, poseBusy = false, poseTarget = 'A'; 
         const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
         let skelColorIdxA = 0; // 初期: 緑
         let skelColorIdxB = 3; // 初期: 黄
-        
-        // 追加: Skel太さ設定
         let skelWidthIdx = 1; 
-        const skelWidths = [2, 6, 12, 20, 30]; // 細〜極太
+        const skelWidths = [2, 6, 12, 20, 30]; 
 
-        // 音声: Aのみ
         let audioCtx, gainNodeA, destNode, analyserA, dataA;
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
         let lastTouchDist = 0, lastX = 0, lastY = 0;
@@ -262,7 +257,7 @@
             await setupAudio();
             vidA.load();
             vidB.load();
-            vidB.muted = true; // Bは常にミュート
+            vidB.muted = true;
             vidB.volume = 0;
             resize();
             requestAnimationFrame(render);
@@ -273,22 +268,13 @@
             if (pose) return;
             try {
                 pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-                pose.setOptions({ 
-                    modelComplexity: 1, 
-                    smoothLandmarks: true, 
-                    minDetectionConfidence: 0.5, 
-                    minTrackingConfidence: 0.5 
-                });
+                pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
                 pose.onResults(onPoseResults);
             } catch(e) { console.log("Pose Error", e); }
         }
 
         function onPoseResults(results) { 
-            if(poseTarget === 'A') {
-                poseResults.A = results; 
-            } else {
-                poseResults.B = results;
-            }
+            if(poseTarget === 'A') { poseResults.A = results; } else { poseResults.B = results; }
         }
         
         function toggleSkeleton() { 
@@ -313,7 +299,6 @@
                 analyserA = audioCtx.createAnalyser();
                 destNode = audioCtx.createMediaStreamDestination();
                 
-                // Aのみを接続
                 srcA.connect(gainNodeA); 
                 srcA.connect(analyserA);
                 gainNodeA.connect(audioCtx.destination);
@@ -326,6 +311,13 @@
             } catch(e) { console.warn("Audio Error", e); }
         }
 
+        // --- 修正: 再開時のオーディオ復帰 ---
+        function resumeAudioContext() {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
         function loadVideo(e, target) {
             const file = e.target.files[0];
             if(!file) return;
@@ -334,8 +326,8 @@
             v.src = url; 
             v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
             v.load();
-            if(target === 'B') { v.muted = true; v.volume = 0; } // B読み込み時もミュート
-            else if(target === 'A') { v.muted = false; v.volume = 1.0; } // Aは音出す
+            if(target === 'B') { v.muted = true; v.volume = 0; } 
+            else if(target === 'A') { v.muted = false; v.volume = 1.0; } 
         }
 
         function handleRecClick() {
@@ -345,7 +337,7 @@
 
         async function executeRecording() {
             if (!audioCtx) await setupAudio();
-            if(audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+            resumeAudioContext();
             
             if(vidA.paused) { vidA.play(); vidB.play(); }
 
@@ -391,7 +383,6 @@
                 vidB.currentTime = vidA.currentTime; 
             }
 
-            // Skel検出実行ロジック
             if(showSkeleton && pose && !poseBusy) {
                 let imgToProcess = null;
                 if(poseTarget === 'A') {
@@ -422,7 +413,6 @@
                 ctx.drawImage(v, -dw/2, -dh/2, dw, dh); ctx.restore();
             };
 
-            // Layout分岐とSkel描画
             if (layout === 0) {
                 drawV(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
                 if(showSkeleton && poseResults.A) drawSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
@@ -477,14 +467,12 @@
                 visibility: l.visibility
             }));
 
-            // ビデオAかBかに応じて色を選択
             const isA = (videoRef === vidA);
             const currentColor = isA ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
 
-            // 修正: 固定幅ではなく、選択された幅を使用
             ctx.lineWidth = skelWidths[skelWidthIdx];
             ctx.strokeStyle = currentColor;
-            ctx.fillStyle = "#FF0000"; // 点は赤
+            ctx.fillStyle = "#FF0000"; 
 
             const connections = (typeof POSE_CONNECTIONS !== 'undefined') ? POSE_CONNECTIONS : [
                 [11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]
@@ -506,7 +494,7 @@
         }
 
         async function togglePlay() {
-            if(audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+            resumeAudioContext(); // 修正: 再生時に必ずResume
             if(vidA.paused) { vidA.play(); vidB.play(); } else { vidA.pause(); vidB.pause(); }
         }
 
@@ -542,7 +530,6 @@
             waveCtx.fillStyle = '#0A84FF'; dataA.forEach((v, i) => waveCtx.fillRect(i*step, 34 - v/8, step-1, v/8));
         }
         
-        // --- Grid 機能 ---
         function cycleGrid() { 
             gridIdx = (gridIdx + 1) % gridSizes.length; 
             document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`;
@@ -560,8 +547,8 @@
         
         function drawGrid() {
             ctx.save(); 
-            ctx.strokeStyle = gridColors[gridColorIdx]; // 設定した色
-            ctx.lineWidth = gridWidths[gridWidthIdx];   // 設定した太さ
+            ctx.strokeStyle = gridColors[gridColorIdx]; 
+            ctx.lineWidth = gridWidths[gridWidthIdx];   
             const c = gridSizes[gridIdx]; 
             ctx.beginPath();
             for(let i=1; i<c; i++) { 
@@ -602,14 +589,12 @@
         function clearStrokes() { strokes = []; }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
 
-        // --- 追加: Skel 設定変更関数 ---
         function cycleSkelWidth() {
             skelWidthIdx = (skelWidthIdx + 1) % skelWidths.length;
             document.getElementById('skelWidthBtn').innerText = `💀 Width:${skelWidths[skelWidthIdx]}`;
         }
 
         function cycleSkelColor() {
-            // AとBを1つずつずらしてペアを変更する
             skelColorIdxA = (skelColorIdxA + 1) % skelColors.length;
             skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; 
             document.getElementById('skelColorDot').style.background = skelColors[skelColorIdxA];
@@ -655,6 +640,8 @@
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
 
         canvas.addEventListener('touchstart', e => {
+            resumeAudioContext(); // 修正: タッチ時にもResume
+            
             const rect = canvas.getBoundingClientRect();
             if (e.touches.length === 1) {
                 const t = e.touches[0];
