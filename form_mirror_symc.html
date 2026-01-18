@@ -395,7 +395,9 @@
 
         async function startSequence(mode) {
             await setupAudio();
-            vidA.play(); vidB.play(); vidA.pause(); vidB.pause();
+            // 修正箇所: ここにあった vidA.play(); vidA.pause(); 等を削除。
+            // iPhone等でPromise中断エラーによりAが固まるのを防ぐため。
+            
             const delay = countdownOptions[countdownIdx];
             if (delay > 0) {
                 let c = delay; const cdOverlay = document.getElementById('countdownOverlay');
@@ -427,6 +429,8 @@
             };
             mediaRecorder.start(1000); isRecording = true;
             document.getElementById('recBtn').classList.add('recording'); document.getElementById('recBtn').innerText = "■ STOP";
+            // 録画開始時にUIを表示させる（隠れていて停止できないのを防ぐ）
+            showUI();
         }
         
         function stopRecording() { if(mediaRecorder && isRecording) { mediaRecorder.stop(); isRecording = false; vidA.pause(); vidB.pause(); document.getElementById('playBtn').innerText = "▶"; } }
@@ -502,7 +506,20 @@
         }
 
         function cycleSkelColor(target) { if (target === 'A') { skelColorIdxA = (skelColorIdxA + 1) % skelColors.length; document.getElementById('skelDotA').style.background = skelColors[skelColorIdxA]; } else { skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; document.getElementById('skelDotB').style.background = skelColors[skelColorIdxB]; } }
-        async function togglePlay() { if (!vidA.paused) { vidA.pause(); vidB.pause(); document.getElementById('playBtn').innerText = "▶"; } else { startSequence('PLAY'); } }
+        
+        // --- 再生ボタン修正 ---
+        async function togglePlay() { 
+            const playBtn = document.getElementById('playBtn');
+            if (!vidA.paused) { 
+                vidA.pause(); 
+                vidB.pause(); 
+                playBtn.innerText = "▶"; 
+            } else { 
+                startSequence('PLAY'); 
+                if (countdownOptions[countdownIdx] === 0) playBtn.innerText = "⏸";
+            } 
+        }
+
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
         function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); }
         function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); }
@@ -531,7 +548,10 @@
             document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`; document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
             if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
             if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
-            if (!isCountingDown) document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
+            // 再生中かどうかに基づいてボタンの見た目を常に同期
+            if (!isCountingDown) {
+                document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
+            }
         }
 
         canvas.addEventListener('touchstart', e => {
@@ -603,16 +623,16 @@
         function toggleUI() { 
             const bp = document.getElementById('bottomPanel');
             const tp = document.getElementById('topPanel');
+            if (isRecording && bp.classList.contains('ui-visible')) return; 
             bp.classList.toggle('ui-visible'); 
             tp.classList.toggle('ui-visible'); 
-            // パネルを閉じる時は折りたたみ状態もリセット
             if(!bp.classList.contains('ui-visible')) bp.classList.remove('collapsed');
         }
         function showUI() { document.getElementById('bottomPanel').classList.add('ui-visible'); document.getElementById('topPanel').classList.add('ui-visible'); }
 
         // メニューの折りたたみ
         function toggleMenu(e) {
-            e.stopPropagation(); // キャンバスクリックイベントへの伝播を防ぐ
+            e.stopPropagation(); 
             const bp = document.getElementById('bottomPanel');
             const btn = document.getElementById('menuToggleBtn');
             bp.classList.toggle('collapsed');
