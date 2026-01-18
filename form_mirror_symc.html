@@ -15,16 +15,10 @@
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <meta name="description" content="Professional side-by-side video analysis tool for athletes and dancers. Sync, record, and improve your form. / アスリートやダンサーのためのプロ仕様2画面動画比較・フォーム分析ツール。シンクロ再生、録画、描画機能でフォームを改善。">
-    <meta name="keywords" content="Form Analysis, Video Sync, Sports Tech, Dance Training, フォーム分析, 動画比較, スポーツトレーニング, シンクロ再生">
-    <meta name="author" content="Form Mirror Sync Project">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
 
-    <title>Form mirror sync pro for iPhone ver 1.1</title>
+    <title>Form Mirror Pro Max - Audio Fixed</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -45,30 +39,6 @@
         
         .fade-ui { transition: opacity 0.3s ease, transform 0.3s ease; opacity: 0; pointer-events: none; }
         .ui-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
-
-        /* --- 第一画面: Professional Splash --- */
-        #loginOverlay {
-            position: fixed; inset: 0; background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
-            z-index: 9000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
-        }
-        .pro-badge {
-            background: var(--primary); color: #000; font-weight: 900; padding: 2px 8px; border-radius: 4px; font-size: 12px; vertical-align: middle; margin-left: 5px;
-        }
-        .app-title-container { text-align: center; margin-bottom: 40px; }
-        .app-title-container h1 { font-size: 28px; letter-spacing: -0.5px; margin: 0; }
-        .app-title-container p { color: #888; margin-top: 10px; font-size: 14px; }
-        .btn-start { 
-            background: linear-gradient(135deg, var(--accent) 0%, #0055ff 100%); 
-            font-size: 18px; padding: 16px 60px; border-radius: 40px; color: white; border: none; font-weight: bold; 
-            box-shadow: 0 10px 20px rgba(10,132,255,0.3); cursor: pointer; transition: transform 0.2s;
-            margin-bottom: 30px;
-        }
-        .btn-start:active { transform: scale(0.95); }
-        
-        .policy-link {
-            color: #666; font-size: 12px; text-decoration: none; border-bottom: 1px solid #333; padding-bottom: 2px;
-        }
-        /* ----------------------------------- */
 
         /* Top Bar */
         .top-bar {
@@ -101,19 +71,8 @@
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             display: flex; flex-direction: column; gap: 8px; z-index: 100;
             transform: translateY(100%);
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .bottom-panel.ui-visible { transform: translateY(0); }
-        
-        /* 隠すボタンの状態 */
-        .bottom-panel.collapsed { transform: translateY(calc(100% - 40px - env(safe-area-inset-bottom))); }
-
-        .menu-toggle-btn {
-            position: absolute; top: -35px; right: 10px;
-            background: var(--bg-glass); border: 1px solid #333; border-bottom: none;
-            color: white; padding: 5px 15px; border-radius: 10px 10px 0 0;
-            font-size: 14px; cursor: pointer; backdrop-filter: blur(20px);
-        }
 
         .wave-container { height: 34px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; position: relative; }
         #waveCanvas { width: 100%; height: 100%; }
@@ -143,12 +102,19 @@
         
         .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid white; }
 
+        /* Overlays */
+        #loginOverlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+        }
+
         #saveContainer { 
             display: none; position: fixed; inset: 0; z-index: 9500; background: #000;
             flex-direction: column; align-items: center; justify-content: center;
         }
         #previewVid { width: 100%; max-height: 60vh; margin-bottom: 20px; background: #222; border-radius: 8px; }
-        .btn-save { background: var(--accent); font-size: 18px; padding: 15px 35px; border-radius: 30px; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        
+        .btn-start, .btn-save { background: var(--accent); font-size: 18px; padding: 15px 35px; border-radius: 30px; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; }
         
         #countdownOverlay {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -163,12 +129,9 @@
 <body>
 
     <div id="loginOverlay">
-        <div class="app-title-container">
-            <h1>Form mirror sync<span class="pro-badge">PRO</span></h1>
-            <p>for iPhone ver 1.1</p>
-        </div>
+        <h1 style="color:var(--accent); margin-bottom:10px;">Form Mirror Max</h1>
+        <p style="text-align:center; color:#888; margin-bottom:30px;">Pro Motion Analysis & Recorder</p>
         <button class="btn-start" onclick="initApp()">開始する / Start</button>
-        <a href="privacy.html" class="policy-link">Privacy Policy / プライバシーポリシー</a>
     </div>
 
     <div id="countdownOverlay"></div>
@@ -201,8 +164,6 @@
     <canvas id="mainCanvas" onclick="toggleUI()"></canvas>
 
     <div id="bottomPanel" class="bottom-panel fade-ui">
-        <button class="menu-toggle-btn" id="menuToggleBtn" onclick="toggleMenu(event)">▼ Menu</button>
-
         <div class="wave-container">
             <canvas id="waveCanvas"></canvas>
             <div id="loopLayer" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
@@ -265,8 +226,8 @@
         </div>
     </div>
 
-    <video id="videoA" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
-    <video id="videoB" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
+    <video id="videoA" class="hidden-vid" playsinline webkit-playsinline preload="auto" loop crossorigin="anonymous"></video>
+    <video id="videoB" class="hidden-vid" playsinline webkit-playsinline preload="auto" loop crossorigin="anonymous"></video>
 
     <script>
         const canvas = document.getElementById('mainCanvas');
@@ -295,8 +256,8 @@
         let mirrorA = true, mirrorB = true;
 
         const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
-        let skelColorIdxA = 0;
-        let skelColorIdxB = 3;
+        let skelColorIdxA = 0; 
+        let skelColorIdxB = 3; 
         
         let transformA = { scale: 1, x: 0, y: 0 };
         let transformB = { scale: 1, x: 0, y: 0 };
@@ -315,223 +276,219 @@
         async function initApp() {
             document.getElementById('loginOverlay').style.display = 'none';
             await setupAudio();
-            [vidA, vidB].forEach(v => { v.muted = false; v.load(); });
+            [vidA, vidB].forEach(v => { v.muted = false; v.volume = 1.0; v.load(); });
             resize();
             requestAnimationFrame(render);
             showUI();
         }
 
-        function initPose() {
-            if (pose) return;
-            try {
-                pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-                pose.setOptions({ 
-                    modelComplexity: 1, 
-                    smoothLandmarks: true, 
-                    minDetectionConfidence: 0.5, 
-                    minTrackingConfidence: 0.5 
-                });
-                pose.onResults(onPoseResults);
-            } catch(e) { console.log("Pose Error", e); }
-        }
-
-        function onPoseResults(results) { 
-            if(poseTarget === 'A') { poseResults.A = results; } else { poseResults.B = results; }
-        }
-
         async function setupAudio() {
-            if (audioCtx) {
-                if(audioCtx.state === 'suspended') await audioCtx.resume();
-                return;
-            }
+            if (audioCtx) return;
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
-                const srcA = audioCtx.createMediaElementSource(vidA), srcB = audioCtx.createMediaElementSource(vidB);
-                gainNodeA = audioCtx.createGain(); gainNodeB = audioCtx.createGain();
-                analyserA = audioCtx.createAnalyser(); analyserB = audioCtx.createAnalyser();
+                
+                const srcA = audioCtx.createMediaElementSource(vidA);
+                const srcB = audioCtx.createMediaElementSource(vidB);
+                
+                gainNodeA = audioCtx.createGain(); 
+                gainNodeB = audioCtx.createGain();
+                analyserA = audioCtx.createAnalyser(); 
+                analyserB = audioCtx.createAnalyser();
                 destNode = audioCtx.createMediaStreamDestination();
+                
                 srcA.connect(gainNodeA); srcA.connect(analyserA);
                 gainNodeA.connect(audioCtx.destination); gainNodeA.connect(destNode);
+                
                 srcB.connect(gainNodeB); srcB.connect(analyserB);
                 gainNodeB.connect(audioCtx.destination); gainNodeB.connect(destNode);
                 
-                vidA.muted = vidB.muted = false;
+                dataA = new Uint8Array(analyserA.frequencyBinCount); 
+                dataB = new Uint8Array(analyserB.frequencyBinCount);
                 
                 updateAudioLevels();
-                dataA = new Uint8Array(analyserA.frequencyBinCount); dataB = new Uint8Array(analyserB.frequencyBinCount);
                 if(audioCtx.state === 'suspended') await audioCtx.resume();
-            } catch(e) { console.warn("Audio Error", e); }
+            } catch(e) { console.warn("Audio Context Error", e); }
         }
 
         function updateAudioLevels() {
-            if(!gainNodeA) return;
+            if(!gainNodeA || !audioCtx) return;
             const now = audioCtx.currentTime;
-            gainNodeA.gain.setTargetAtTime((audioMode === 0 || audioMode === 1) ? 1 : 0, now, 0.1);
-            gainNodeB.gain.setTargetAtTime((audioMode === 0 || audioMode === 2) ? 1 : 0, now, 0.1);
+            gainNodeA.gain.setTargetAtTime((audioMode === 0 || audioMode === 1) ? 1 : 0, now, 0.05);
+            gainNodeB.gain.setTargetAtTime((audioMode === 0 || audioMode === 2) ? 1 : 0, now, 0.05);
             const labels = ["Mix", "A Only", "B Only", "Mute"];
             document.getElementById('audioModeBtn').innerText = "🔊 " + labels[audioMode];
         }
+
         function cycleAudioMode() { audioMode = (audioMode + 1) % 4; updateAudioLevels(); }
 
-        // 修正: 参考ソースに合わせて読み込みロジックをシンプル化（安定化）
         function loadVideo(e, target) {
             const file = e.target.files[0];
             if(!file) return;
             const url = URL.createObjectURL(file);
             const v = (target === 'A') ? vidA : vidB;
-            // メモリクリアのためにsrcを外すが、onloadedmetadataを使用するように戻す
-            v.pause(); v.removeAttribute('src'); v.load();
             v.src = url; 
             v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
             v.load();
         }
 
-        function cycleCountdown() {
-            countdownIdx = (countdownIdx + 1) % countdownOptions.length;
-            const val = countdownOptions[countdownIdx];
-            document.getElementById('cdBtn').innerText = val === 0 ? "⏳ No" : `⏳ ${val}s`;
+        function handleRecClick() {
+            if(isRecording) stopRecording();
+            else startRecordingSequence();
         }
 
-        function handleRecClick() { if(isRecording) stopRecording(); else startSequence('REC'); }
-
-        async function startSequence(mode) {
-            await setupAudio();
-            
+        function startRecordingSequence() {
             const delay = countdownOptions[countdownIdx];
             if (delay > 0) {
-                let c = delay; const cdOverlay = document.getElementById('countdownOverlay');
-                cdOverlay.style.display = 'block'; cdOverlay.innerText = c; isCountingDown = true;
+                let c = delay;
+                const cdOverlay = document.getElementById('countdownOverlay');
+                cdOverlay.style.display = 'block';
+                cdOverlay.innerText = c;
+                isCountingDown = true;
                 const timer = setInterval(() => {
-                    c--; if(c > 0) { cdOverlay.innerText = c; } 
-                    else { clearInterval(timer); cdOverlay.style.display = 'none'; isCountingDown = false; if (mode === 'REC') executeRecording(); else executePlay(); }
+                    c--;
+                    if(c > 0) cdOverlay.innerText = c;
+                    else { clearInterval(timer); cdOverlay.style.display = 'none'; isCountingDown = false; executeRecording(); }
                 }, 1000);
-            } else { 
-                // 遅延なしの場合は直接実行
-                if (mode === 'REC') executeRecording(); else executePlay(); 
-            }
-        }
-
-        function executePlay() { 
-            vidA.play(); 
-            vidB.play(); 
-            document.getElementById('playBtn').innerText = "⏸"; 
+            } else { executeRecording(); }
         }
 
         async function executeRecording() {
-            if (loopEnabled && loopStart !== null) { const diff = vidA.currentTime - vidB.currentTime; vidA.currentTime = loopStart; vidB.currentTime = loopStart - diff; }
-            executePlay();
-            const canvasStream = canvas.captureStream(30), audioStream = destNode.stream;
-            const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
+            if (!audioCtx) await setupAudio();
+            else if(audioCtx.state === 'suspended') await audioCtx.resume();
+
+            vidA.currentTime = 0; vidB.currentTime = 0;
+            await Promise.all([vidA.play(), vidB.play()]);
+            document.getElementById('playBtn').innerText = "⏸";
+
+            const canvasStream = canvas.captureStream(30);
+            const audioStream = destNode.stream;
+            const tracks = [...canvasStream.getVideoTracks(), ...audioStream.getAudioTracks()];
+            const combinedStream = new MediaStream(tracks);
+            
             recordedChunks = [];
-            let opt = { mimeType: 'video/mp4' }; if (!MediaRecorder.isTypeSupported(opt.mimeType)) opt.mimeType = 'video/webm;codecs=vp9';
-            try { mediaRecorder = new MediaRecorder(combinedStream, opt); } catch (e) { mediaRecorder = new MediaRecorder(combinedStream); }
+            let opt = { mimeType: 'video/webm;codecs=vp9,opus' };
+            if (!MediaRecorder.isTypeSupported(opt.mimeType)) opt.mimeType = 'video/mp4';
+            if (!MediaRecorder.isTypeSupported(opt.mimeType)) opt.mimeType = '';
+            
+            mediaRecorder = new MediaRecorder(combinedStream, opt);
             mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
             mediaRecorder.onstop = () => {
-                const type = mediaRecorder.mimeType || 'video/webm';
-                lastBlob = new Blob(recordedChunks, { type: type });
+                lastBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
                 previewVid.src = URL.createObjectURL(lastBlob);
                 saveContainer.style.display = 'flex';
-                document.getElementById('recBtn').classList.remove('recording'); document.getElementById('recBtn').innerText = "● REC"; 
+                document.getElementById('recBtn').classList.remove('recording'); 
+                document.getElementById('recBtn').innerText = "● REC"; 
             };
-            mediaRecorder.start(1000); isRecording = true;
-            document.getElementById('recBtn').classList.add('recording'); document.getElementById('recBtn').innerText = "■ STOP";
-            showUI();
+            
+            mediaRecorder.start();
+            isRecording = true;
+            document.getElementById('recBtn').classList.add('recording');
+            document.getElementById('recBtn').innerText = "■ STOP";
         }
         
-        function stopRecording() { if(mediaRecorder && isRecording) { mediaRecorder.stop(); isRecording = false; vidA.pause(); vidB.pause(); document.getElementById('playBtn').innerText = "▶"; } }
-
-        async function shareVideo() {
-            if (!lastBlob) return;
-            try {
-                const ext = lastBlob.type.includes('mp4') ? 'mp4' : 'webm';
-                const file = new File([lastBlob], `FormMirror_${Date.now()}.${ext}`, { type: lastBlob.type });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Form Mirror Sync' }); } 
-                else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
-            } catch (e) { console.error("Share failed", e); }
+        function stopRecording() { 
+            if(mediaRecorder && isRecording) { 
+                mediaRecorder.stop(); 
+                isRecording = false; 
+                vidA.pause(); vidB.pause();
+                document.getElementById('playBtn').innerText = "▶";
+            } 
         }
 
-        function closeSaveUI() { saveContainer.style.display = 'none'; if(previewVid.src) URL.revokeObjectURL(previewVid.src); previewVid.src = ""; lastBlob = null; }
-
-        const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => {
-            if (v.readyState < 2 || alpha <= 0) return;
-            ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.globalAlpha = alpha; 
-            if (br != 100) ctx.filter = `brightness(${br}%)`;
-            ctx.translate(x + w/2, y + h/2); ctx.scale(trans.scale, trans.scale); ctx.translate(trans.x, trans.y);
-            if (mirror) ctx.scale(-1, 1);
-            const videoRatio = v.videoWidth / v.videoHeight, areaRatio = w / h;
-            let dw, dh; if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
-            ctx.drawImage(v, -dw/2, -dh/2, dw, dh); ctx.restore();
-        };
-
-        const drawSkel = (res, x, y, w, h, mirror, alpha, trans, videoRef) => {
-            if(!res || !res.poseLandmarks || videoRef.readyState < 2 || alpha <= 0) return;
-            ctx.save(); ctx.globalAlpha = alpha; ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-            ctx.translate(x + w/2, y + h/2); ctx.scale(trans.scale, trans.scale); ctx.translate(trans.x, trans.y);
-            if (mirror) ctx.scale(-1, 1);
-            const videoRatio = videoRef.videoWidth / videoRef.videoHeight, areaRatio = w / h;
-            let dw, dh; if (videoRatio > areaRatio) { dh = h; dw = h * videoRatio; } else { dw = w; dh = w / videoRatio; }
-            const landmarks = res.poseLandmarks.map(l => ({ x: (l.x - 0.5) * dw, y: (l.y - 0.5) * dh, visibility: l.visibility }));
-            const color = (videoRef === vidA) ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
-            ctx.lineWidth = 4; ctx.strokeStyle = color; ctx.fillStyle = "#FF0000";
-            const connections = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]];
-            for (const [start, end] of connections) { if(landmarks[start]?.visibility > 0.5 && landmarks[end]?.visibility > 0.5) { ctx.beginPath(); ctx.moveTo(landmarks[start].x, landmarks[start].y); ctx.lineTo(landmarks[end].x, landmarks[end].y); ctx.stroke(); } }
-            for(const l of landmarks) { if(l.visibility > 0.5) { ctx.beginPath(); ctx.arc(l.x, l.y, 5, 0, 2*Math.PI); ctx.fill(); } }
-            ctx.restore();
-        };
+        async function togglePlay() {
+            if(audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+            if(vidA.paused) { vidA.play(); vidB.play(); } else { vidA.pause(); vidB.pause(); }
+        }
 
         function render() {
             ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
-            if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) { const offset = vidA.currentTime - vidB.currentTime; vidA.currentTime = loopStart || 0; vidB.currentTime = vidA.currentTime - offset; }
+
+            if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
+                const offset = vidA.currentTime - vidB.currentTime;
+                vidA.currentTime = loopStart || 0;
+                vidB.currentTime = vidA.currentTime - offset;
+            }
+
             if(showSkeleton && pose && !poseBusy) {
                 let imgToProcess = (poseTarget === 'A') ? (vidA.readyState >= 2 ? vidA : null) : (vidB.readyState >= 2 ? vidB : null);
-                if(imgToProcess) { poseBusy = true; pose.send({image: imgToProcess}).then(() => { poseBusy = false; poseTarget = (poseTarget === 'A') ? 'B' : 'A'; }); } else { poseTarget = (poseTarget === 'A') ? 'B' : 'A'; }
+                if(imgToProcess) {
+                    poseBusy = true; 
+                    pose.send({image: imgToProcess}).then(() => { poseBusy = false; poseTarget = (poseTarget === 'A') ? 'B' : 'A'; });
+                } else { poseTarget = (poseTarget === 'A') ? 'B' : 'A'; }
             }
-            let opA = 1, opB = 1; if (flickerMode && layout === 2) { const t = Date.now() % 500; if (t < 250) { opA = 1; opB = 0; } else { opA = 0; opB = 1; } }
+
+            let opA = 1, opB = 1;
+            if (flickerMode && layout === 2) { const t = Date.now() % 500; if (t < 250) { opA = 1; opB = 0; } else { opA = 0; opB = 1; } }
+
+            const drawVid = (v, x, y, w, h, mirror, alpha, br, trans) => { drawFrame(v, x, y, w, h, mirror, br, alpha, trans); };
+            const drawSkel = (res, x, y, w, h, mirror, trans, videoRef) => { drawSkeleton(res, x, y, w, h, mirror, trans, videoRef); };
+
             if (layout === 0) {
-                drawVid(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA); if(showSkeleton) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, 1, transformA, vidA);
-                drawVid(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB); if(showSkeleton) drawSkel(poseResults.B, w/2, 0, w/2, h, mirrorB, 1, transformB, vidB);
-                if(ghost > 0) { drawVid(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA); if(showSkeleton) drawSkel(poseResults.A, w/2, 0, w/2, h, mirrorA, ghost, transformA, vidA); }
+                drawVid(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
+                if(showSkeleton && poseResults.A) drawSkel(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
+                drawVid(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
+                if(showSkeleton && poseResults.B) drawSkel(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
+                if(ghost > 0) drawVid(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
             } else if (layout === 1) {
-                drawVid(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA); if(showSkeleton) drawSkel(poseResults.A, 0, 0, w, h/2, mirrorA, 1, transformA, vidA);
-                drawVid(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB); if(showSkeleton) drawSkel(poseResults.B, 0, h/2, w, h/2, mirrorB, 1, transformB, vidB);
-                if(ghost > 0) { drawVid(vidA, 0, h/2, w, h/2, mirrorA, ghost, 100, transformA); if(showSkeleton) drawSkel(poseResults.A, 0, h/2, w, h/2, mirrorA, ghost, transformA, vidA); }
+                drawVid(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
+                if(showSkeleton && poseResults.A) drawSkel(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
+                drawVid(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
+                if(showSkeleton && poseResults.B) drawSkel(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
+                if(ghost > 0) drawVid(vidA, 0, h/2, w, h/2, mirrorA, ghost, 100, transformA);
             } else {
-                const currentGhostAlpha = flickerMode ? opA : Math.max(0.3, ghost);
-                drawVid(vidB, 0, 0, w, h, mirrorB, (flickerMode ? opB : 1), bri, transformB); if(showSkeleton && !flickerMode) drawSkel(poseResults.B, 0, 0, w, h, mirrorB, 1, transformB, vidB);
-                drawVid(vidA, 0, 0, w, h, mirrorA, currentGhostAlpha, 100, transformA); if(showSkeleton && (!flickerMode || opA > 0.5)) drawSkel(poseResults.A, 0, 0, w, h, mirrorA, currentGhostAlpha, transformA, vidA);
+                drawVid(vidB, 0, 0, w, h, mirrorB, opB, bri, transformB);
+                if(showSkeleton && poseResults.B && !flickerMode) drawSkel(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
+                drawVid(vidA, 0, 0, w, h, mirrorA, (flickerMode ? opA : Math.max(0.3, ghost)), 100, transformA);
+                if(showSkeleton && poseResults.A && (!flickerMode || opA > 0.5)) drawSkel(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
             }
+            
             if(gridSizes[gridIdx] > 0) drawGrid();
             drawAnnotations();
-            if(metadataText) { ctx.save(); ctx.font = "bold 24px sans-serif"; ctx.fillStyle = "white"; ctx.shadowBlur=4; ctx.fillText(metadataText, 20, 80); ctx.restore(); }
-            drawWaveforms(); updateTimeDisplay();
-            if(isRecording) { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill(); }
+            if(metadataText) { ctx.save(); ctx.font="bold 24px sans-serif"; ctx.fillStyle="white"; ctx.shadowColor="black"; ctx.shadowBlur=4; ctx.fillText(metadataText, 20, 80); ctx.restore(); }
+            drawWaveforms();
+            updateTimeDisplay();
+            if(isRecording) { ctx.fillStyle="red"; ctx.beginPath(); ctx.arc(w-30,40,10,0,Math.PI*2); ctx.fill(); }
             requestAnimationFrame(render);
         }
 
-        function cycleSkelColor(target) { if (target === 'A') { skelColorIdxA = (skelColorIdxA + 1) % skelColors.length; document.getElementById('skelDotA').style.background = skelColors[skelColorIdxA]; } else { skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; document.getElementById('skelDotB').style.background = skelColors[skelColorIdxB]; } }
-        
-        // 修正: 再生ロジックを参考ソース準拠に変更（即時再生）
-        async function togglePlay() { 
-            const playBtn = document.getElementById('playBtn');
-            if (!vidA.paused) { 
-                vidA.pause(); 
-                vidB.pause(); 
-                playBtn.innerText = "▶"; 
-            } else { 
-                // カウントダウンが設定されている場合はシーケンス処理へ
-                if (countdownOptions[countdownIdx] > 0) {
-                    startSequence('PLAY'); 
-                } else {
-                    // カウントダウン無しの場合は即時再生（Source1と同じ挙動で同期ずれを防ぐ）
-                    if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
-                    vidA.play();
-                    vidB.play();
-                    playBtn.innerText = "⏸";
-                }
-            } 
+        function drawFrame(v, x, y, w, h, mirror, br, alpha, trans) {
+            if (v.readyState < 2 || alpha <= 0) return;
+            ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.globalAlpha = alpha; 
+            if (br != 100) ctx.filter = `brightness(${br}%)`;
+            ctx.translate(x + w/2, y + h/2); ctx.scale(trans.scale, trans.scale); ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+            const vr = v.videoWidth / v.videoHeight, cr = w / h;
+            let dw, dh;
+            if (vr > cr) { dh = h; dw = h * vr; } else { dw = w; dh = w / vr; }
+            ctx.drawImage(v, -dw/2, -dh/2, dw, dh); ctx.restore();
+        }
+
+        function drawSkeleton(results, x, y, w, h, mirror, trans, videoRef) {
+            if(!results.poseLandmarks || videoRef.readyState < 2) return;
+            ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+            ctx.translate(x + w/2, y + h/2); ctx.scale(trans.scale, trans.scale); ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+            const vr = videoRef.videoWidth / videoRef.videoHeight, cr = w / h;
+            let dw, dh;
+            if (vr > cr) { dh = h; dw = h * vr; } else { dw = w; dh = w / vr; }
+            const landmarks = results.poseLandmarks.map(l => ({ x: (l.x - 0.5) * dw, y: (l.y - 0.5) * dh, visibility: l.visibility }));
+            const currentColor = (videoRef === vidA) ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
+            ctx.lineWidth = 3; ctx.strokeStyle = currentColor; ctx.fillStyle = "#FF0000";
+            const connections = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]];
+            for (const [start, end] of connections) {
+                const p1 = landmarks[start], p2 = landmarks[end];
+                if(p1 && p2 && p1.visibility > 0.5 && p2.visibility > 0.5) { ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+            }
+            for(const l of landmarks) { if(l && l.visibility > 0.5) { ctx.beginPath(); ctx.arc(l.x, l.y, 4, 0, 2*Math.PI); ctx.fill(); } }
+            ctx.restore();
+        }
+
+        function cycleSkelColor(target) {
+            if (target === 'A') { skelColorIdxA = (skelColorIdxA + 1) % skelColors.length; document.getElementById('skelDotA').style.background = skelColors[skelColorIdxA]; }
+            else { skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; document.getElementById('skelDotB').style.background = skelColors[skelColorIdxB]; }
         }
 
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
@@ -542,12 +499,16 @@
         function seekInput(target, val) { if(target === 'A') vidA.currentTime = parseFloat(val); else vidB.currentTime = parseFloat(val); }
 
         function setLoopPoint(type) {
-            if(type === 'start') { loopStart = vidA.currentTime; document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`; } 
+            if(type === 'start') { loopStart = vidA.currentTime; document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`; }
             else { loopEnd = vidA.currentTime; document.getElementById('loopEndBtn').innerText = `📍 Out: ${formatTime(loopEnd)}`; }
             renderLoopMarkers();
         }
 
-        function toggleLoopEnabled() { loopEnabled = !loopEnabled; const btn = document.getElementById('loopToggleBtn'); btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF"; btn.classList.toggle('loop-on', loopEnabled); }
+        function toggleLoopEnabled() {
+            loopEnabled = !loopEnabled;
+            const btn = document.getElementById('loopToggleBtn'); btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF";
+            btn.classList.toggle('loop-on', loopEnabled);
+        }
 
         function renderLoopMarkers() {
             const layer = document.getElementById('loopLayer'); layer.innerHTML = '';
@@ -556,16 +517,14 @@
         }
 
         function toggleSyncMove() { syncMove = !syncMove; document.getElementById('syncMoveBtn').classList.toggle('active', syncMove); }
-        function setMetadata() { const txt = prompt("Memo:", metadataText); if(txt !== null) metadataText = txt; }
+        function setMetadata() { const txt = prompt("Memo:", metadataText || new Date().toLocaleDateString()); if(txt !== null) metadataText = txt; }
 
         function updateTimeDisplay() {
-            document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`; document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
+            document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
+            document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
             if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
             if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
-            // カウントダウン中以外は実際のステータスと同期
-            if (!isCountingDown) {
-                document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
-            }
+            document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
         }
 
         canvas.addEventListener('touchstart', e => {
@@ -575,14 +534,16 @@
             else if (layout === 1) activeTarget = (t.clientY < rect.height/2) ? transformA : transformB;
             else activeTarget = transformA; 
             if (syncMove) activeTarget = transformA; 
-            if (e.touches.length === 2) { isTwoFingerGesture = true; lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); lastTwoFingerMidX = (e.touches[0].pageX + e.touches[1].pageX) / 2; } 
-            else { isTwoFingerGesture = false; }
+            if (e.touches.length === 2) { isTwoFingerGesture = true; lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); lastTwoFingerMidX = (e.touches[0].pageX + e.touches[1].pageX) / 2; } else { isTwoFingerGesture = false; }
             if (drawMode) { currentStroke = { points: [{x: (t.clientX - rect.left) * (canvas.width/rect.width), y: (t.clientY - rect.top) * (canvas.height/rect.height)}], color: drawColors[drawColorIdx], shape: drawShape }; }
         });
 
         canvas.addEventListener('touchmove', e => {
             e.preventDefault(); const rect = canvas.getBoundingClientRect();
-            if (drawMode && currentStroke) { const t = e.touches[0], pt = {x: (t.clientX-rect.left)*(canvas.width/rect.width), y: (t.clientY-rect.top)*(canvas.height/rect.height)}; if (drawShape === 'free') currentStroke.points.push(pt); else { if(currentStroke.points.length > 1) currentStroke.points.pop(); currentStroke.points.push(pt); } } 
+            if (drawMode && currentStroke) {
+                const t = e.touches[0], pt = {x: (t.clientX-rect.left)*(canvas.width/rect.width), y: (t.clientY-rect.top)*(canvas.height/rect.height)};
+                if (drawShape === 'free') currentStroke.points.push(pt); else { if(currentStroke.points.length > 1) currentStroke.points.pop(); currentStroke.points.push(pt); }
+            } 
             else if (e.touches.length === 1 && activeTarget && !isTwoFingerGesture) {
                 const t = e.touches[0], dx = (t.clientX - lastX) * 2, dy = (t.clientY - lastY) * 2;
                 if (syncMove) { transformA.x += dx; transformA.y += dy; transformB.x += dx; transformB.y += dy; } else { activeTarget.x += dx; activeTarget.y += dy; }
@@ -590,21 +551,22 @@
             } 
             else if (e.touches.length === 2) {
                 const midX = (e.touches[0].pageX + e.touches[1].pageX) / 2, dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                if (Math.abs(midX - lastTwoFingerMidX) > 2) { changeFrame(midX > lastTwoFingerMidX ? 1 : -1); lastTwoFingerMidX = midX; } 
-                else if (activeTarget && Math.abs(dist - lastTouchDist) > 2) { const scale = dist / lastTouchDist; if(syncMove) { transformA.scale *= scale; transformB.scale *= scale; } else { activeTarget.scale *= scale; } lastTouchDist = dist; }
+                const deltaX = Math.abs(midX - lastTwoFingerMidX), deltaDist = Math.abs(dist - lastTouchDist);
+                if (deltaX > 2 && deltaX > deltaDist) { changeFrame(midX > lastTwoFingerMidX ? 1 : -1); lastTwoFingerMidX = midX; lastTouchDist = dist; } 
+                else if (activeTarget && deltaDist > 2) { const scale = dist / lastTouchDist; if(syncMove) { transformA.scale *= scale; transformB.scale *= scale; } else { activeTarget.scale *= scale; } lastTouchDist = dist; lastTwoFingerMidX = midX; }
             }
         }, {passive:false});
 
-        canvas.addEventListener('touchend', () => { if(currentStroke) { strokes.push(currentStroke); currentStroke = null; } activeTarget = null; isTwoFingerGesture = false; });
+        canvas.addEventListener('touchend', (e) => { if(currentStroke) { strokes.push(currentStroke); currentStroke = null; } if(e.touches.length === 0) { activeTarget = null; isTwoFingerGesture = false; } });
 
-        function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
         function drawWaveforms() {
-            if(!analyserA) return; analyserA.getByteFrequencyData(dataA); analyserB.getByteFrequencyData(dataB);
+            if(!analyserA || !dataA) return; analyserA.getByteFrequencyData(dataA); analyserB.getByteFrequencyData(dataB);
             waveCtx.clearRect(0,0, waveCanvas.width, waveCanvas.height);
             const step = waveCanvas.width / dataA.length;
             waveCtx.fillStyle = '#0A84FF'; dataA.forEach((v, i) => waveCtx.fillRect(i*step, 15 - v/25, step-1, v/12.5));
             waveCtx.fillStyle = '#FFCC00'; dataB.forEach((v, i) => waveCtx.fillRect(i*step, 30 - v/25, step-1, v/12.5));
         }
+
         function drawAnnotations() {
             ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = 5;
             strokes.concat(currentStroke || []).forEach(s => {
@@ -615,11 +577,13 @@
                 ctx.stroke();
             }); ctx.restore();
         }
+
         function drawGrid() {
             ctx.save(); ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 2; const c = gridSizes[gridIdx]; ctx.beginPath();
             for(let i=1; i<c; i++) { ctx.moveTo(i*(canvas.width/c), 0); ctx.lineTo(i*(canvas.width/c), canvas.height); ctx.moveTo(0, i*(canvas.height/c)); ctx.lineTo(canvas.width, i*(canvas.height/c)); }
             ctx.stroke(); ctx.restore();
         }
+
         function undoStroke() { strokes.pop(); }
         function clearStrokes() { strokes = []; }
         function cycleColor() { drawColorIdx = (drawColorIdx + 1) % drawColors.length; document.getElementById('colorDot').style.background = drawColors[drawColorIdx]; }
@@ -632,27 +596,19 @@
         function toggleFlicker() { flickerMode = !flickerMode; document.getElementById('flickerBtn').classList.toggle('active', flickerMode); if(flickerMode) layout=2; }
         function toggleSkeleton() { showSkeleton = !showSkeleton; document.getElementById('skelBtn').classList.toggle('active', showSkeleton); if(showSkeleton) initPose(); }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
-        
-        // UI表示切替
-        function toggleUI() { 
-            const bp = document.getElementById('bottomPanel');
-            const tp = document.getElementById('topPanel');
-            if (isRecording && bp.classList.contains('ui-visible')) return; 
-            bp.classList.toggle('ui-visible'); 
-            tp.classList.toggle('ui-visible'); 
-            if(!bp.classList.contains('ui-visible')) bp.classList.remove('collapsed');
-        }
+        function toggleUI() { document.getElementById('bottomPanel').classList.toggle('ui-visible'); document.getElementById('topPanel').classList.toggle('ui-visible'); }
         function showUI() { document.getElementById('bottomPanel').classList.add('ui-visible'); document.getElementById('topPanel').classList.add('ui-visible'); }
+        function closeSaveUI() { saveContainer.style.display = 'none'; if(previewVid.src) URL.revokeObjectURL(previewVid.src); previewVid.src = ""; lastBlob = null; }
 
-        // メニューの折りたたみ
-        function toggleMenu(e) {
-            e.stopPropagation(); 
-            const bp = document.getElementById('bottomPanel');
-            const btn = document.getElementById('menuToggleBtn');
-            bp.classList.toggle('collapsed');
-            btn.innerText = bp.classList.contains('collapsed') ? "▲ Menu" : "▼ Menu";
+        async function shareVideo() {
+            if (!lastBlob) return;
+            const ext = lastBlob.type.includes('mp4') ? 'mp4' : 'webm';
+            const file = new File([lastBlob], `MirrorRec_${Date.now()}.${ext}`, { type: lastBlob.type });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); } 
+            else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
+        function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
         window.addEventListener('resize', resize);
     </script>
 </body>
