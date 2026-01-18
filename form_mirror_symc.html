@@ -18,7 +18,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Pro Max - Audio Final Fix</title>
+    <title>Form Mirror Pro Max - Loop Fix</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -71,7 +71,7 @@
             display: flex; flex-direction: column; gap: 8px; z-index: 100;
             transform: translateY(100%);
         }
-        
+
         .close-panel-btn {
             position: absolute; right: 10px; top: -40px;
             width: 36px; height: 36px; border-radius: 50%;
@@ -82,7 +82,10 @@
 
         .wave-container { height: 34px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; position: relative; }
         #waveCanvas { width: 100%; height: 100%; }
-
+        /* ループ範囲を可視化するためのマーカー */
+        .loop-marker { position: absolute; top: 0; bottom: 0; width: 2px; background-color: var(--record); z-index: 10; pointer-events: none; }
+        .loop-marker.start { background-color: var(--accent); }
+        
         .sliders-row { display: flex; align-items: center; gap: 10px; }
         .slider-group { flex: 1; display: flex; align-items: center; gap: 5px; font-size: 11px; color: #ccc; }
         
@@ -91,8 +94,7 @@
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         
         .seek-container { display: flex; flex-direction: column; gap: 12px; width: 100%; position: relative; padding: 5px 0; }
-        .loop-marker { position: absolute; top: 0; width: 2px; height: 100%; background: #FF3B30; pointer-events: none; z-index: 5; }
-
+        
         .seek-a::-webkit-slider-runnable-track { background: var(--accent) !important; }
         .seek-a::-webkit-slider-thumb { border: 2px solid var(--accent); }
         .seek-b::-webkit-slider-runnable-track { background: var(--primary) !important; }
@@ -163,7 +165,7 @@
         </div>
         
         <div style="display:flex; justify-content:space-between; font-size:11px; color:#aaa; font-family: monospace;">
-            <span id="timeA" style="color:var(--accent)">A: 0:00.00</span>
+            <span id="timeA" style="color:var(--accent)">A: 0:00.00 (Audio ON)</span>
             <span id="timeB" style="color:var(--primary)">B: 0:00.00</span>
         </div>
         
@@ -184,6 +186,7 @@
             <button class="tool-pill" id="loopStartBtn" onclick="setLoopPoint('start')">📍 Loop In</button>
             <button class="tool-pill" id="loopEndBtn" onclick="setLoopPoint('end')">📍 Loop Out</button>
             <button class="tool-pill" id="loopToggleBtn" onclick="toggleLoopEnabled()">🔄 Loop OFF</button>
+            
             <button class="tool-pill" onclick="nudgeA(-0.05)">A&lt;</button>
             <button class="tool-pill" onclick="nudgeA(0.05)">A&gt;</button>
             <button class="tool-pill" onclick="nudgeB(-0.05)">B&lt;</button>
@@ -219,7 +222,7 @@
         const saveContainer = document.getElementById('saveContainer');
 
         let layout = 0, syncMove = false, flickerMode = false, metadataText = ""; 
-        let loopStart = null, loopEnd = null, loopEnabled = false;
+        let loopStart = 0, loopEnd = null, loopEnabled = false;
         let drawMode = false, strokes = [], currentStroke = null, drawColorIdx = 0;
         const drawColors = ["#0A84FF", "#FF3B30", "#30D158", "#FFD60A"]; 
         let drawShape = 'free', speedIdx = 3, speeds = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]; 
@@ -228,7 +231,6 @@
         let transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
         let pose = null, showSkeleton = false, poseResults = { A: null, B: null }, poseBusy = false, poseTarget = 'A'; 
         
-        // 音声: Aのみ
         let audioCtx, gainNodeA, destNode, analyserA, dataA;
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
         let lastTouchDist = 0, lastX = 0, lastY = 0;
@@ -238,7 +240,7 @@
             await setupAudio();
             vidA.load();
             vidB.load();
-            vidB.muted = true; // Bは常にミュート
+            vidB.muted = true; 
             vidB.volume = 0;
             resize();
             requestAnimationFrame(render);
@@ -256,13 +258,12 @@
                 analyserA = audioCtx.createAnalyser();
                 destNode = audioCtx.createMediaStreamDestination();
                 
-                // Aのみを接続
                 srcA.connect(gainNodeA); 
                 srcA.connect(analyserA);
-                gainNodeA.connect(audioCtx.destination);
-                gainNodeA.connect(destNode);
+                gainNodeA.connect(audioCtx.destination); 
+                gainNodeA.connect(destNode); 
                 
-                vidA.muted = false; // Aのミュート解除
+                vidA.muted = false; 
                 vidA.volume = 1.0;
                 
                 dataA = new Uint8Array(analyserA.frequencyBinCount);
@@ -277,8 +278,8 @@
             v.src = url; 
             v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
             v.load();
-            if(target === 'B') { v.muted = true; v.volume = 0; } // B読み込み時もミュート
-            else if(target === 'A') { v.muted = false; v.volume = 1.0; } // Aは音出す
+            if(target === 'B') { v.muted = true; v.volume = 0; } 
+            else if(target === 'A') { v.muted = false; v.volume = 1.0; }
         }
 
         function handleRecClick() {
@@ -329,10 +330,25 @@
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
+            // --- ループ同期処理の修正 ---
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
-                vidA.currentTime = loopStart || 0;
-                vidB.currentTime = vidA.currentTime; 
+                // Aをループ開始点に戻す
+                vidA.currentTime = loopStart;
+                // BもAに合わせて同期させる（Bの現在時間 = Aのループ開始時間 - (AとBのズレ) ではない）
+                // 単純にAがループした瞬間のBの相対的な位置を維持するなら、以下のようにBも巻き戻す必要がある
+                // ここでは「AとBを完全に同期させてループさせる」という意図で実装します
+                
+                // もしAとBがずれて再生されている場合（ユーザーがシークバーでずらした場合）、
+                // その「ずれ」を維持したままループさせるには計算が必要です。
+                // 今回はシンプルに「Aが戻ったらBもAと同じ時間に戻す」か「Bも巻き戻す」かですが、
+                // リクエストの「Bの動画はちゃんと戻ってはループするように」に従い、
+                // vidB.currentTime も vidA.currentTime と同じ量だけ戻します。
+                
+                // ループ区間の長さ
+                const loopDuration = loopEnd - loopStart;
+                vidB.currentTime -= loopDuration;
             }
+            // ---------------------------
 
             if(showSkeleton && pose && !poseBusy) {
                 let img = (poseTarget === 'A') ? vidA : vidB;
@@ -398,7 +414,7 @@
         function changeFrame(dir) { const step = 1/30; vidA.currentTime += dir * step; vidB.currentTime += dir * step; }
         function seekInput(target, val) { if(target === 'A') vidA.currentTime = parseFloat(val); else vidB.currentTime = parseFloat(val); }
         function updateTimeDisplay() {
-            document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
+            document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)} (Audio ON)`;
             document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
             if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
             if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
@@ -436,8 +452,33 @@
         function undoStroke() { strokes.pop(); }
         function clearStrokes() { strokes = []; }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
-        function setLoopPoint(t) { if(t==='start') loopStart=vidA.currentTime; else loopEnd=vidA.currentTime; }
-        function toggleLoopEnabled() { loopEnabled = !loopEnabled; }
+
+        // --- ループ設定の修正 ---
+        function setLoopPoint(t) { 
+            if(t==='start') {
+                loopStart = vidA.currentTime; 
+                document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`;
+            } else { 
+                loopEnd = vidA.currentTime; 
+                document.getElementById('loopEndBtn').innerText = `📍 Out: ${formatTime(loopEnd)}`;
+            }
+            renderLoopMarkers();
+        }
+
+        function toggleLoopEnabled() { 
+            loopEnabled = !loopEnabled; 
+            const btn = document.getElementById('loopToggleBtn');
+            btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF";
+            btn.classList.toggle('loop-on', loopEnabled);
+        }
+
+        function renderLoopMarkers() {
+            const layer = document.getElementById('loopLayer'); layer.innerHTML = '';
+            if(loopStart !== null) { let d = document.createElement('div'); d.className='loop-marker start'; d.style.left=(loopStart/vidA.duration*100)+'%'; layer.appendChild(d); }
+            if(loopEnd !== null) { let d = document.createElement('div'); d.className='loop-marker'; d.style.left=(loopEnd/vidA.duration*100)+'%'; layer.appendChild(d); }
+        }
+        // -----------------------
+
         function closeSaveUI() { saveContainer.style.display = 'none'; previewVid.src = ""; }
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
 
