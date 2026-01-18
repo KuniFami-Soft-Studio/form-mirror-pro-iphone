@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-1V1ELMWFTY"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-1V1ELMWFTY');
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <title>Form Mirror Pro for iPhone - Practice & Analysis Tool</title>
+    <meta name="description" content="Form Mirror Pro: リアルタイムAI骨格検知＆ドローイング機能搭載。iPhoneで自分のフォームを可視化し、プロ動画と比較できる練習支援ツール。">
+    <meta name="robots" content="index, follow">
+
+    <style>
+        :root {
+            --primary: #0A84FF;
+            --danger: #FF453A;
+            --bg-glass: rgba(28, 28, 30, 0.85);
+            --text-main: #FFFFFF;
+            --text-sub: #8E8E93;
+        }
+
+        body { 
+            margin: 0; background: #000; color: var(--text-main); 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            overflow: hidden; position: fixed; width: 100%; height: 100%;
+            touch-action: none; -webkit-user-select: none; user-select: none; 
+        }
+        
+        canvas { width: 100%; height: 100%; display: block; background: #000; }
+        
+        .fade-ui { transition: opacity 0.3s ease, transform 0.3s ease; opacity: 0; pointer-events: none; }
+        .ui-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+        .top-bar {
+            position: fixed; top: 0; left: 0; right: 0;
+            padding: calc(env(safe-area-inset-top) + 10px) 20px 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            z-index: 100;
+        }
+        .icon-btn {
+            background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); border: none;
+            color: white; width: 44px; height: 44px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+
+        .mode-badge {
+            background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px;
+            font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .bottom-panel {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            padding: 10px 15px calc(env(safe-area-inset-bottom) + 10px);
+            background: var(--bg-glass); border-top-left-radius: 24px; border-top-right-radius: 24px;
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            display: flex; flex-direction: column; gap: 8px; z-index: 100;
+            transform: translateY(100%); transition: transform 0.3s ease;
+        }
+        .bottom-panel.ui-visible { transform: translateY(0); }
+
+        .sliders-row { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+        .slider-group { flex: 1; display: flex; align-items: center; gap: 5px; font-size: 12px; }
+        input[type="range"] { flex: 1; height: 4px; background: #444; accent-color: var(--primary); }
+        input[type="color"] { width: 25px; height: 25px; border: none; border-radius: 50%; padding: 0; overflow: hidden; background: none; }
+
+        .skel-controls {
+            display: flex; align-items: center; gap: 8px; background: rgba(50, 255, 50, 0.2); 
+            padding: 4px 10px; border-radius: 12px; margin-left: 5px; border: 1px solid rgba(50, 255, 50, 0.5);
+        }
+
+        .time-display { font-size: 12px; color: var(--text-sub); text-align: center; font-variant-numeric: tabular-nums; }
+        
+        .transport-row { display: flex; justify-content: space-around; align-items: center; }
+        .play-btn-circle { width: 55px; height: 55px; background: white; color: black; border-radius: 50%; font-size: 24px; border:none; }
+        .rec-btn-circle { width: 44px; height: 44px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; background:none; }
+        .rec-inner { width: 30px; height: 30px; background: var(--danger); border-radius: 50%; }
+        .is-recording .rec-inner { width: 18px; height: 18px; border-radius: 4px; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .tools-scroll { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; }
+        .tool-pill { flex: 0 0 auto; padding: 6px 12px; border-radius: 15px; background: rgba(255,255,255,0.1); color: white; border: none; font-size: 12px; }
+        .tool-pill.active { background: var(--primary); }
+
+        #drawToolbar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            padding: 10px 15px calc(env(safe-area-inset-bottom) + 15px);
+            background: rgba(44, 44, 46, 0.95);
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
+            display: none; flex-direction: column; gap: 10px; z-index: 110;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+        }
+        .draw-tools-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .draw-btn { 
+            background: #3a3a3c; color: white; border: none; padding: 8px 12px; border-radius: 10px; font-size: 14px; flex: 1;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .draw-btn.active { background: var(--primary); color: white; }
+        .draw-style-row { display: flex; align-items: center; gap: 10px; background: #1c1c1e; padding: 8px; border-radius: 12px; }
+
+        #loginOverlay {
+            position: fixed; inset: 0; background: #000; z-index: 9000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto;
+        }
+        .intro-box { max-width: 500px; text-align: center; line-height: 1.6; margin-bottom: 20px; background: #111; padding: 20px; border-radius: 15px; border: 1px solid #333; }
+        .donation-links { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
+        .donation-links a { padding: 10px 15px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 14px; color: white; background: #333; border: 1px solid #555; }
+        .btn-proceed { background:#007AFF; font-size:18px; width:180px; padding:15px; margin: 10px; border-radius: 15px; color: white; border: none; font-weight: bold; }
+        .btn-home { background: #8e8e93; font-size: 16px; width: 200px; padding: 12px; margin: 10px; color: white; text-decoration: none; border-radius: 15px; font-weight: bold; display: inline-block; text-align: center; }
+
+        #countdownOverlay {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000;
+            text-shadow: 0 0 20px rgba(0,0,0,1); pointer-events: none; display: none;
+        }
+
+        #loadingOverlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 8000;
+            display: none; align-items: center; justify-content: center; flex-direction: column;
+            color: white; font-weight: bold;
+        }
+
+        #saveContainer { 
+            display: none; position: fixed; inset: 0; z-index: 9500; background: #000;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        #previewVid { width: 100%; max-height: 60vh; margin-bottom: 20px; background: #222; }
+    </style>
+</head>
+<body>
+
+    <div id="countdownOverlay"></div>
+    <div id="loadingOverlay">
+        <div style="font-size: 40px; margin-bottom: 10px;">🧠</div>
+        <div>Loading AI Model...</div>
+        <div style="font-size: 12px; color: #aaa; margin-top: 5px;">(Stable Version)</div>
+    </div>
+
+    <div id="loginOverlay">
+        <h2 style="margin-bottom: 20px; color: #007AFF;">Form Mirror Pro for iPhone v1.3</h2>
+         <div class="intro-box">
+            <p style="font-size: 14px; margin: 0 0 15px 0; white-space: pre-wrap; color: #ddd;">こんにちは！便利なツールを開発しているクリエイターです。このアプリがあなたのスポーツやスキルの練習の役に立てば嬉しいです！今後も新しいプロジェクトをどんどん作っていく予定です。応援よろしくお願いします！</p>
+            <p style="font-size: 13px; margin: 0; white-space: pre-wrap; color: #aaa;">Hi! I'm a creator building useful tools. I hope this app helps your sports or skill practice! I'm planning to launch more projects. Thank you for your support!</p>
+        </div> 
+        <div style="width: 100%; max-width: 320px; margin: 10px 0; text-align: center;">
+            <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5115190227060860" data-ad-slot="3577508619" data-ad-format="auto" data-full-width-responsive="true"></ins>
+            <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        </div>
+        <div class="donation-links">
+            <a href="guide/FormMirrorProforiphone‐User Manual.html" target="_blank" style="background: #28a745; border-color: #28a745;">📖 Manual</a>
+            <a href="form_mirror_sync.html" target="_blank" style="background: #5856d6; border-color: #5856d6;">🔗 Sync & Pro Analysis（同期・プロ分析）for iPhone</a>
+            <a href="../form-mirror-pro-pc/" target="_blank" style="background: #5856d6; border-color: #5856d6;">💻 PC版</a>
+            <a href="https://ofuse.me/dfee538b" target="_blank">🇯🇵 OFUSE</a>
+            <a href="https://buymeacoffee.com/kunifami20w" target="_blank">🌎 Coffee</a>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="display: flex; flex-wrap: wrap; justify-content: center;">
+                <button class="btn-proceed" onclick="initAppWithLang('ja')">開始 (JP)</button>
+                <button class="btn-proceed" onclick="initAppWithLang('en')" style="background: #555;">Start (EN)</button>
+            </div>
+            <a href="https://kunifami-soft-studio.com/" class="btn-home">🏠 ホームへ戻る</a>
+        </div>
+         <footer style="margin-top: 40px; padding: 20px 0; text-align: center; border-top: 1px solid #333; width: 100%; max-width: 400px;">
+            <div style="margin-bottom: 10px;">
+                <a href="contact.html" style="color: #888; text-decoration: none; font-size: 13px; margin: 0 15px;">Contact / お問い合わせ</a>
+                <a href="privacy.html" style="color: #888; text-decoration: none; font-size: 13px; margin: 0 15px;">Privacy Policy / 規約</a>
+            </div>
+            <p style="color: #555; font-size: 10px;">&copy; 2026 KuniFami Soft Studio</p>
+        </footer>
+    </div>
+
+    <div id="topPanel" class="top-bar fade-ui">
+        <label for="fileInput" class="icon-btn">📂</label>
+        <input type="file" id="fileInput" accept="video/*" onchange="loadVideo(event)" style="display:none;">
+        <div class="mode-badge" id="layoutBadge" onclick="switchLayout()">📺 Both</div>
+        <button class="icon-btn" onclick="switchCamera()">🔄</button>
+    </div>
+
+    <canvas id="mainCanvas"></canvas>
+
+    <div id="bottomPanel" class="bottom-panel fade-ui">
+        <div class="sliders-row">
+            <div class="slider-group"><span>👻</span><input type="range" id="ghostRange" min="0" max="100" value="0"></div>
+            <div class="skel-controls" id="skelUI" style="display:none;">
+                <span style="font-size:10px;">SKEL</span>
+                <input type="color" id="skelColor" value="#00FF00">
+                <input type="range" id="skelWidth" min="1" max="10" value="3" style="width: 50px;">
+            </div>
+            <div class="slider-group"><span>💡</span><input type="range" id="brightnessRange" min="100" max="400" value="100"></div>
+        </div>
+
+        <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+        <input type="range" id="seekBar" value="0" step="0.1" style="width:100%;">
+
+        <div class="transport-row">
+            <button class="tool-pill" id="btnLoop" onclick="toggleLoop()" style="font-size:18px;">🔁</button>
+            <button class="icon-btn" onclick="modelVid.currentTime -= 5">⏪</button>
+            <button class="play-btn-circle" id="playPauseBtn" onclick="togglePlay()">▶</button>
+            <button class="icon-btn" onclick="modelVid.currentTime += 5">⏩</button>
+            <button class="rec-btn-circle" id="recordBtnWrapper" onclick="handleRecordClick()">
+                <div class="rec-inner"></div>
+            </button>
+        </div>
+
+        <div class="tools-scroll">
+            <button class="tool-pill" id="drawModeBtn" onclick="openDrawMode()" style="background:#FF9500;">🖊️ Pen</button>
+            <button class="tool-pill" id="skelBtn" onclick="toggleSkel()" style="border:1px solid #00FF00; color:#00FF00;">🦴 Skel: OFF</button>
+            <button class="tool-pill active" id="mirrorModelBtn" onclick="toggleMirror('model')">🪞 見本</button>
+            <button class="tool-pill active" id="mirrorMeBtn" onclick="toggleMirror('me')">🤳 自分</button>
+            <button class="tool-pill" id="rotateModelBtn" onclick="rotateModel()">🔄 0°</button>
+            <button class="tool-pill" id="fitModeBtn" onclick="toggleFitMode()">↔ Fit</button>
+            <button class="tool-pill" id="gridBtn" onclick="cycleGrid()"># Grid</button>
+            <button class="tool-pill" id="btnSpeed" onclick="changeSpeed()">⚡ x1.0</button>
+            <button class="tool-pill" id="delayBtn" onclick="cycleDelay()">⏱ 0s</button>
+            <button class="tool-pill active" id="cdBtn" onclick="cycleCountdown()">⏳ 3s</button>
+            <button class="tool-pill" id="btnA" onclick="setPoint('A')">📍 A: --</button>
+            <button class="tool-pill" id="btnB" onclick="setPoint('B')">📍 B: --</button>
+            <button class="tool-pill" onclick="startCountdown('reset')" style="background:var(--primary);">↩ Back A</button>
+        </div>
+    </div>
+
+    <div id="drawToolbar">
+        <div class="draw-tools-row">
+            <button class="draw-btn active" id="toolFree" onclick="setDrawTool('free')">〰 Free</button>
+            <button class="draw-btn" id="toolLine" onclick="setDrawTool('line')">📏 Line</button>
+            <button class="draw-btn" id="toolCircle" onclick="setDrawTool('circle')">⭕ Circle</button>
+            <button class="draw-btn" onclick="undoDraw()" style="background:#555;">↶ Undo</button>
+        </div>
+        <div class="draw-tools-row">
+            <div class="draw-style-row" style="flex:2;">
+                <input type="color" id="drawColor" value="#FFFF00">
+                <input type="range" id="drawWidth" min="2" max="20" value="5" style="flex:1;">
+            </div>
+            <button class="draw-btn" onclick="clearDraws()" style="background:#FF3B30; flex:0.5;">🗑</button>
+            <button class="draw-btn" onclick="closeDrawMode()" style="background:var(--primary); font-weight:bold;">Done</button>
+        </div>
+    </div>
+
+    <div id="saveContainer">
+        <h3 id="saveTitle" style="color:white; margin-bottom:10px;">録画完了</h3>
+        <video id="previewVid" playsinline controls></video>
+        <div style="display:flex; gap:15px; width:90%;">
+            <button onclick="closeSaveUI()" style="flex:1; padding:15px; border-radius:12px; background:#333; color:white; border:none;">閉じる</button>
+            <button id="shareBtn" onclick="shareVideo()" style="flex:2; padding:15px; border-radius:12px; background:var(--primary); color:white; border:none; font-weight:bold;">保存・共有</button>
+        </div>
+    </div>
+
+    <video id="modelVideo" loop playsinline style="display:none;" crossorigin="anonymous"></video>
+    <video id="myCamera" autoplay muted playsinline style="display:none;"></video>
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const modelVid = document.getElementById('modelVideo');
+        const myCam = document.getElementById('myCamera');
+        const seekBar = document.getElementById('seekBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const brightnessRange = document.getElementById('brightnessRange');
+        const ghostRange = document.getElementById('ghostRange');
+        const cdOverlay = document.getElementById('countdownOverlay');
+        const previewVid = document.getElementById('previewVid');
+        const saveContainer = document.getElementById('saveContainer');
+        
+        // UI
+        const skelBtn = document.getElementById('skelBtn');
+        const skelUI = document.getElementById('skelUI');
+        const skelColorInp = document.getElementById('skelColor');
+        const skelWidthInp = document.getElementById('skelWidth');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const bottomPanel = document.getElementById('bottomPanel');
+        const drawToolbar = document.getElementById('drawToolbar');
+        const drawColorInp = document.getElementById('drawColor');
+        const drawWidthInp = document.getElementById('drawWidth');
+        
+        // Pose State
+        let poseMe = null;
+        let poseModel = null;
+        let isSkelEnabled = false;
+        let resultMe = null;
+        let resultModel = null;
+        let isPoseLoading = false;
+
+        // App State
+        let displayMode = 0, mediaRecorder = null, recordedChunks = [];
+        let pointA = 0, pointB = 0, isLooping = false, lastBlob = null;
+        let speeds = [1.0, 0.75, 0.5, 1.25, 1.5], speedIdx = 0;
+        let delayTimes = [0, 3, 4, 5], delayIdx = 0; 
+        let gridMode = 0;
+        let countdownOptions = [3, 5, 7], countdownIdx = 0;
+        let recordBitrates = [2000000, 5000000, 12000000], bitrateIdx = 1;
+        let isCountingDown = false;
+        let mirrorModel = true, mirrorMe = true, modelRotation = 0, fitMode = "cover", uiTimer = null, currentLang = 'ja';
+        let currentFacingMode = "user", cameraBuffer = [], wakeLock = null;
+        let audioCtx = null, audioSource = null, audioDest = null;
+
+        const transformModel = { scale: 1.0, x: 0, y: 0 };
+        const transformMe = { scale: 1.0, x: 0, y: 0 };
+        let lastTouchDist = 0, isDragging = false, lastX = 0, lastY = 0;
+
+        // Draw State
+        let isDrawingMode = false;
+        let drawTool = 'free';
+        let userDrawings = []; 
+        let currentDraw = null;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function formatTime(s) {
+            if (isNaN(s)) return "0:00";
+            const m = Math.floor(s / 60);
+            const sc = Math.floor(s % 60);
+            return `${m}:${sc.toString().padStart(2, '0')}`;
+        }
+
+        // --- Touch Events ---
+        canvas.addEventListener('touchstart', (e) => {
+            if (isDrawingMode) handleDrawStart(e);
+            else handleNavStart(e);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (isDrawingMode) handleDrawMove(e);
+            else handleNavMove(e);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (isDrawingMode) handleDrawEnd(e);
+            else handleNavEnd(e);
+        }, { passive: false });
+
+        // --- Drawing Logic ---
+        function openDrawMode() { isDrawingMode = true; bottomPanel.classList.remove('ui-visible'); drawToolbar.style.display = 'flex'; }
+        function closeDrawMode() { isDrawingMode = false; drawToolbar.style.display = 'none'; bottomPanel.classList.add('ui-visible'); resetUITimer(); }
+        function setDrawTool(tool) {
+            drawTool = tool;
+            document.querySelectorAll('.draw-btn').forEach(b => b.classList.remove('active'));
+            if(tool === 'free') document.getElementById('toolFree').classList.add('active');
+            if(tool === 'line') document.getElementById('toolLine').classList.add('active');
+            if(tool === 'circle') document.getElementById('toolCircle').classList.add('active');
+        }
+        function undoDraw() { userDrawings.pop(); }
+        function clearDraws() { userDrawings = []; }
+        function getCanvasCoords(e) { return { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
+        function handleDrawStart(e) {
+            e.preventDefault(); if (e.touches.length !== 1) return;
+            const p = getCanvasCoords(e);
+            const color = drawColorInp.value;
+            const width = parseInt(drawWidthInp.value);
+            if (drawTool === 'free') currentDraw = { type: 'free', points: [p], color, width };
+            else if (drawTool === 'line') currentDraw = { type: 'line', start: p, end: p, color, width };
+            else if (drawTool === 'circle') currentDraw = { type: 'circle', start: p, current: p, color, width };
+        }
+        function handleDrawMove(e) {
+            e.preventDefault(); if (!currentDraw || e.touches.length !== 1) return;
+            const p = getCanvasCoords(e);
+            if (drawTool === 'free') currentDraw.points.push(p);
+            else if (drawTool === 'line') currentDraw.end = p;
+            else if (drawTool === 'circle') currentDraw.current = p;
+        }
+        function handleDrawEnd(e) { e.preventDefault(); if (currentDraw) { userDrawings.push(currentDraw); currentDraw = null; } }
+
+        // --- Navigation Logic ---
+        function handleNavStart(e) {
+            if (document.getElementById('bottomPanel').classList.contains('ui-visible')) hideUI(); else showUI();
+            if (e.touches.length === 1) { isDragging = true; lastX = e.touches[0].pageX; lastY = e.touches[0].pageY; } 
+            else if (e.touches.length === 2) { isDragging = false; lastTouchDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY); }
+        }
+        function handleNavMove(e) {
+            e.preventDefault();
+            if (e.touches.length === 2) {
+                const dist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                if (lastTouchDist > 0) {
+                    const delta = dist / lastTouchDist;
+                    const target = (displayMode === 0) ? ((e.touches[0].pageX + e.touches[1].pageX)/2 < window.innerWidth/2 ? transformModel : transformMe) : (displayMode === 1 ? transformModel : transformMe);
+                    target.scale = Math.min(Math.max(0.1, target.scale * delta), 10.0);
+                }
+                lastTouchDist = dist;
+            } else if (e.touches.length === 1 && isDragging) {
+                const target = (displayMode === 0) ? (lastX < window.innerWidth/2 ? transformModel : transformMe) : (displayMode === 1 ? transformModel : transformMe);
+                target.x += (e.touches[0].pageX - lastX) / target.scale;
+                target.y += (e.touches[0].pageY - lastY) / target.scale;
+                lastX = e.touches[0].pageX; lastY = e.touches[0].pageY;
+            }
+        }
+        function handleNavEnd(e) {}
+
+        // --- Init ---
+        async function initApp() {
+            try {
+                if (myCam.srcObject) myCam.srcObject.getTracks().forEach(t => t.stop());
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode, width: {ideal: 1280}, height: {ideal: 720} }, audio: false });
+                myCam.srcObject = stream;
+                await myCam.play();
+                showUI(); 
+                if(!window.isRendering) { window.isRendering = true; render(); }
+            } catch (e) { alert("Camera Error"); document.getElementById('loginOverlay').style.display = 'flex'; }
+        }
+        async function initAppWithLang(lang) {
+            currentLang = lang; document.getElementById('loginOverlay').style.display = 'none';
+            if ('wakeLock' in navigator) { try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
+            await initApp();
+        }
+
+        // --- Pose Logic (Version Pinned) ---
+        function initPose() {
+            isPoseLoading = true; loadingOverlay.style.display = 'flex';
+            
+            if (typeof Pose === 'undefined') {
+                console.warn("Pose script not loaded yet, retrying...");
+                setTimeout(initPose, 500); return;
+            }
+
+            // 完全一致するバージョンのWASMファイルを指定
+            const createPose = () => {
+                const p = new Pose({locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`;
+                }});
+                p.setOptions({ modelComplexity: 0, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+                return p;
+            };
+
+            poseMe = createPose();
+            poseMe.onResults((res) => { resultMe = res; });
+            
+            poseModel = createPose();
+            poseModel.onResults((res) => { resultModel = res; });
+
+            const dummy = document.createElement('canvas'); dummy.width=1; dummy.height=1;
+            
+            // Parallel init
+            Promise.all([poseMe.initialize(), poseModel.initialize()])
+            .then(() => {
+                return Promise.all([poseMe.send({image: dummy}), poseModel.send({image: dummy})]);
+            })
+            .then(() => {
+                isPoseLoading = false; loadingOverlay.style.display = 'none'; 
+                isSkelEnabled = true; updateSkelBtn(); processPoseFrame();
+            })
+            .catch(e => {
+                console.error(e); 
+                alert("AI Load Failed. Please ensure internet connection."); 
+                loadingOverlay.style.display = 'none';
+            });
+        }
+
+        async function processPoseFrame() {
+            if(!isSkelEnabled) return;
+            if (myCam.readyState >= 2 && !myCam.paused) await poseMe.send({image: myCam});
+            if (modelVid.readyState >= 2 && !modelVid.paused && !modelVid.ended && modelVid.videoWidth > 0) {
+                try { await poseModel.send({image: modelVid}); } catch(e){}
+            }
+            requestAnimationFrame(processPoseFrame);
+        }
+
+        function toggleSkel() { 
+            if (!poseMe && !isPoseLoading) initPose(); 
+            else { isSkelEnabled = !isSkelEnabled; updateSkelBtn(); if(isSkelEnabled) processPoseFrame(); } 
+        }
+        function updateSkelBtn() {
+            skelBtn.innerText = isSkelEnabled ? "🦴 Skel: ON" : "🦴 Skel: OFF";
+            skelBtn.style.background = isSkelEnabled ? "var(--primary)" : "rgba(255,255,255,0.1)";
+            skelBtn.style.color = isSkelEnabled ? "white" : "#00FF00";
+            skelUI.style.display = isSkelEnabled ? "flex" : "none";
+        }
+
+        // --- Render ---
+        function render() {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const w = canvas.width, h = canvas.height;
+
+            let camFrame = myCam;
+            if (myCam.readyState >= 2) {
+                if (delayTimes[delayIdx] > 0) {
+                    const tc = document.createElement('canvas'); tc.width = myCam.videoWidth; tc.height = myCam.videoHeight;
+                    const tctx = tc.getContext('2d'); tctx.drawImage(myCam, 0, 0);
+                    if (isSkelEnabled && resultMe && resultMe.poseLandmarks) drawSkeletonOnContext(tctx, resultMe.poseLandmarks, tc.width, tc.height);
+                    cameraBuffer.push(tc); if (cameraBuffer.length > 60 * 6) cameraBuffer.shift();
+                    const targetFrame = delayTimes[delayIdx] * 60; 
+                    camFrame = cameraBuffer[Math.max(0, cameraBuffer.length - 1 - targetFrame)] || myCam;
+                } else cameraBuffer = [];
+            }
+
+            if (displayMode === 0) {
+                draw(modelVid, 0, 0, w/2, h, mirrorModel, 100, 1, modelRotation, transformModel, false);
+                draw(camFrame, w/2, 0, w/2, h, mirrorMe, brightnessRange.value, 1, 0, transformMe, true);
+                if (ghostRange.value > 0) draw(modelVid, w/2, 0, w/2, h, mirrorModel, 100, ghostRange.value/100, modelRotation, transformModel, false);
+            } else if (displayMode === 1) {
+                draw(modelVid, 0, 0, w, h, mirrorModel, 100, 1, modelRotation, transformModel, false);
+            } else {
+                draw(camFrame, 0, 0, w, h, mirrorMe, brightnessRange.value, 1, 0, transformMe, true);
+                if (ghostRange.value > 0) draw(modelVid, 0, 0, w, h, mirrorModel, 100, ghostRange.value/100, modelRotation, transformModel, false);
+            }
+            
+            renderUserDrawings();
+            if (gridMode > 0) drawGrid();
+            requestAnimationFrame(render);
+        }
+
+        function draw(v, x, y, w, h, mirror, br, alpha, rot, trans, isCameraLayer) {
+            if (v instanceof HTMLVideoElement && v.readyState < 2) return;
+            ctx.save();
+            ctx.globalAlpha = alpha; ctx.filter = `brightness(${br}%)`;
+            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+            ctx.translate(x + w / 2, y + h / 2);
+            ctx.scale(trans.scale, trans.scale);
+            ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+            if (rot !== 0) ctx.rotate(rot * Math.PI / 180);
+            
+            const vw = (rot % 180 === 0) ? (v.videoWidth || v.width) : (v.videoHeight || v.height);
+            const vh = (rot % 180 === 0) ? (v.videoHeight || v.height) : (v.videoWidth || v.width);
+            const ratio = fitMode === "cover" ? Math.max(w / vw, h / vh) : Math.min(w / vw, h / vh);
+            const dw = (v.videoWidth || v.width) * ratio; const dh = (v.videoHeight || v.height) * ratio;
+            ctx.drawImage(v, -dw / 2, -dh / 2, dw, dh);
+            
+            if (isSkelEnabled) {
+                if (isCameraLayer && delayTimes[delayIdx] === 0 && resultMe && resultMe.poseLandmarks) {
+                    drawSkeletonLocal(ctx, resultMe.poseLandmarks, dw, dh);
+                } else if (!isCameraLayer && resultModel && resultModel.poseLandmarks) {
+                    drawSkeletonLocal(ctx, resultModel.poseLandmarks, dw, dh);
+                }
+            }
+            ctx.restore();
+        }
+
+        function renderUserDrawings() {
+            ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round";
+            [...userDrawings, currentDraw].forEach(d => {
+                if(!d) return;
+                ctx.beginPath(); ctx.strokeStyle = d.color; ctx.lineWidth = d.width;
+                if (d.type === 'free' && d.points.length > 0) {
+                    ctx.moveTo(d.points[0].x, d.points[0].y);
+                    for (let i = 1; i < d.points.length; i++) ctx.lineTo(d.points[i].x, d.points[i].y);
+                } else if (d.type === 'line') {
+                    ctx.moveTo(d.start.x, d.start.y); ctx.lineTo(d.end.x, d.end.y);
+                } else if (d.type === 'circle') {
+                    const r = Math.hypot(d.current.x - d.start.x, d.current.y - d.start.y);
+                    ctx.arc(d.start.x, d.start.y, r, 0, 2 * Math.PI);
+                }
+                ctx.stroke();
+            });
+            ctx.restore();
+        }
+
+        function drawSkeletonLocal(ctx, landmarks, vidW, vidH) {
+            ctx.lineWidth = skelWidthInp.value; ctx.strokeStyle = skelColorInp.value;
+            if(window.drawConnectors && window.drawLandmarks) {
+                window.drawConnectors(ctx, landmarks, Pose.POSE_CONNECTIONS, {color: skelColorInp.value, lineWidth: parseInt(skelWidthInp.value)});
+            }
+        }
+        function drawSkeletonOnContext(tctx, landmarks, w, h) {
+            if(window.drawConnectors) {
+               window.drawConnectors(tctx, landmarks, Pose.POSE_CONNECTIONS, {color: skelColorInp.value, lineWidth: parseInt(skelWidthInp.value)});
+            }
+        }
+
+        function drawGrid() {
+            ctx.save(); ctx.strokeStyle = "rgba(0, 255, 255, 0.6)"; ctx.lineWidth = 1; ctx.beginPath();
+            const w = canvas.width, h = canvas.height;
+            if (gridMode === 1) { ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); } 
+            else { let counts = [0, 0, 3, 5, 8, 12, 16]; let n = counts[gridMode]; for(let i=1; i<n; i++){ ctx.moveTo(i*(w/n), 0); ctx.lineTo(i*(w/n), h); ctx.moveTo(0, i*(h/n)); ctx.lineTo(w, i*(h/n)); } }
+            ctx.stroke(); ctx.restore();
+        }
+
+        function switchCamera() { currentFacingMode = (currentFacingMode === "user") ? "environment" : "user"; initApp(); }
+        function toggleMirror(target) { if (target === 'model') { mirrorModel = !mirrorModel; document.getElementById('mirrorModelBtn').classList.toggle('active', mirrorModel); } else { mirrorMe = !mirrorMe; document.getElementById('mirrorMeBtn').classList.toggle('active', mirrorMe); } resetUITimer(); }
+        function switchLayout() { displayMode = (displayMode + 1) % 3; document.getElementById('layoutBadge').innerText = ["📺 Both", "📺 Model", "📺 Camera"][displayMode]; resetUITimer(); }
+        function rotateModel() { modelRotation = (modelRotation + 90) % 360; document.getElementById('rotateModelBtn').innerText = `🔄 ${modelRotation}°`; }
+        function toggleFitMode() { fitMode = (fitMode === "cover") ? "contain" : "cover"; document.getElementById('fitModeBtn').classList.toggle('active', fitMode === "contain"); }
+        function cycleGrid() { gridMode = (gridMode + 1) % 7; document.getElementById('gridBtn').innerText = ["# Grid", "# Center", "# 3x3", "# 5x5", "# 8x8", "# 12x12", "# 16x16"][gridMode]; document.getElementById('gridBtn').classList.toggle('active', gridMode > 0); }
+        function cycleQuality() { bitrateIdx = (bitrateIdx + 1) % recordBitrates.length; document.getElementById('btnQuality').innerText = ["🎬 Low", "🎬 Standard", "🎬 High"][bitrateIdx]; }
+        function cycleDelay() { delayIdx = (delayIdx + 1) % delayTimes.length; document.getElementById('delayBtn').innerText = `⏱ ${delayTimes[delayIdx]}s`; }
+        function cycleCountdown() { countdownIdx = (countdownIdx + 1) % countdownOptions.length; document.getElementById('cdBtn').innerText = `⏳ ${countdownOptions[countdownIdx]}s`; }
+        function changeSpeed() { speedIdx = (speedIdx + 1) % speeds.length; modelVid.playbackRate = speeds[speedIdx]; document.getElementById('btnSpeed').innerText = `⚡ x${speeds[speedIdx].toFixed(1)}`; }
+        function toggleLoop() { isLooping = !isLooping; document.getElementById('btnLoop').classList.toggle('active', isLooping); }
+
+        function handleRecordClick() { if (mediaRecorder?.state === "recording") stopRecording(); else startCountdown('record'); }
+        function startCountdown(type) { 
+            isCountingDown = true; if(!isDrawingMode) bottomPanel.classList.remove('ui-visible'); 
+            let c = countdownOptions[countdownIdx];
+            const ov = document.getElementById('countdownOverlay');
+            ov.style.display = 'block'; ov.innerText = c; modelVid.pause(); 
+            const t = setInterval(() => { c--; if (c > 0) ov.innerText = c; else { clearInterval(t); ov.style.display = 'none'; isCountingDown = false; if (type === 'record') executeRecording(); else { modelVid.currentTime = pointA; modelVid.play(); playPauseBtn.innerText = "⏸"; } } }, 1000); 
+        }
+
+        async function executeRecording() { 
+            recordedChunks = []; const canvasStream = canvas.captureStream(30);
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContextClass(); audioDest = audioCtx.createMediaStreamDestination();
+                try { audioSource = audioCtx.createMediaElementSource(modelVid); audioSource.connect(audioCtx.destination); audioSource.connect(audioDest); } catch(e){}
+            }
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...audioDest.stream.getAudioTracks()]);
+            const mimeType = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: mimeType, videoBitsPerSecond: recordBitrates[bitrateIdx] }); 
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); }; 
+            mediaRecorder.onstop = () => { 
+                lastBlob = new Blob(recordedChunks, { type: mimeType }); 
+                previewVid.src = URL.createObjectURL(lastBlob); 
+                saveContainer.style.display = 'flex'; 
+            }; 
+            modelVid.currentTime = pointA; mediaRecorder.start(); 
+            document.getElementById('recordBtnWrapper').classList.add('is-recording'); modelVid.play(); playPauseBtn.innerText = "⏸";
+        }
+
+        function stopRecording() { if (mediaRecorder?.state === "recording") { mediaRecorder.stop(); modelVid.pause(); playPauseBtn.innerText = "▶"; document.getElementById('recordBtnWrapper').classList.remove('is-recording'); showUI(); } }
+        function loadVideo(e) { const f = e.target.files[0]; if(f) { modelVid.src = URL.createObjectURL(f); modelVid.onloadedmetadata = () => { seekBar.max = modelVid.duration; updateTimeDisplay(); pointA = 0; pointB = modelVid.duration; }; } }
+        function togglePlay() { if (modelVid.paused) { modelVid.play(); playPauseBtn.innerText = "⏸"; } else { modelVid.pause(); playPauseBtn.innerText = "▶"; } }
+        function setPoint(p) { const time = modelVid.currentTime; if (p === 'A') { pointA = time; document.getElementById('btnA').innerText = `📍 A: ${formatTime(time)}`; } else { pointB = time; document.getElementById('btnB').innerText = `📍 B: ${formatTime(time)}`; } }
+        function showUI() { if(!isDrawingMode) document.querySelectorAll('.fade-ui').forEach(u => u.classList.add('ui-visible')); resetUITimer(); }
+        function hideUI() { document.querySelectorAll('.fade-ui').forEach(u => u.classList.remove('ui-visible')); }
+        function resetUITimer() { if (uiTimer) clearTimeout(uiTimer); uiTimer = setTimeout(() => { if (!modelVid.paused && !isDrawingMode) hideUI(); }, 4000); }
+        function handleCanvasClick() { if (document.getElementById('bottomPanel').classList.contains('ui-visible')) hideUI(); else showUI(); }
+        function updateTimeDisplay() { timeDisplay.innerText = `${formatTime(modelVid.currentTime)} / ${formatTime(modelVid.duration)}`; }
+        function closeSaveUI() { saveContainer.style.display = 'none'; if (previewVid.src) URL.revokeObjectURL(previewVid.src); previewVid.src = ""; lastBlob = null; }
+        async function shareVideo() { if (lastBlob) { try { const f = new File([lastBlob], "form_practice.mp4", {type: lastBlob.type}); if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({files:[f], title:'録画ビデオ'}); } else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = "form_practice.mp4"; a.click(); } } catch(e) { alert("保存に失敗しました。"); } } }
+        seekBar.oninput = () => { modelVid.currentTime = seekBar.value; };
+        modelVid.ontimeupdate = () => { if (isLooping && modelVid.currentTime >= pointB) modelVid.currentTime = pointA; seekBar.value = modelVid.currentTime; updateTimeDisplay(); };
+    </script>
+</body>
+</html>
