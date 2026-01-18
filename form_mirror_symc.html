@@ -18,7 +18,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Pro Max - Loop Fix</title>
+    <title>Form Mirror Pro Max - Audio Final Fix</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -71,7 +71,7 @@
             display: flex; flex-direction: column; gap: 8px; z-index: 100;
             transform: translateY(100%);
         }
-
+        
         .close-panel-btn {
             position: absolute; right: 10px; top: -40px;
             width: 36px; height: 36px; border-radius: 50%;
@@ -82,10 +82,7 @@
 
         .wave-container { height: 34px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; position: relative; }
         #waveCanvas { width: 100%; height: 100%; }
-        /* ループ範囲を可視化するためのマーカー */
-        .loop-marker { position: absolute; top: 0; bottom: 0; width: 2px; background-color: var(--record); z-index: 10; pointer-events: none; }
-        .loop-marker.start { background-color: var(--accent); }
-        
+
         .sliders-row { display: flex; align-items: center; gap: 10px; }
         .slider-group { flex: 1; display: flex; align-items: center; gap: 5px; font-size: 11px; color: #ccc; }
         
@@ -94,7 +91,8 @@
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         
         .seek-container { display: flex; flex-direction: column; gap: 12px; width: 100%; position: relative; padding: 5px 0; }
-        
+        .loop-marker { position: absolute; top: 0; width: 2px; height: 100%; background: #FF3B30; pointer-events: none; z-index: 5; }
+
         .seek-a::-webkit-slider-runnable-track { background: var(--accent) !important; }
         .seek-a::-webkit-slider-thumb { border: 2px solid var(--accent); }
         .seek-b::-webkit-slider-runnable-track { background: var(--primary) !important; }
@@ -165,7 +163,7 @@
         </div>
         
         <div style="display:flex; justify-content:space-between; font-size:11px; color:#aaa; font-family: monospace;">
-            <span id="timeA" style="color:var(--accent)">A: 0:00.00 (Audio ON)</span>
+            <span id="timeA" style="color:var(--accent)">A: 0:00.00</span>
             <span id="timeB" style="color:var(--primary)">B: 0:00.00</span>
         </div>
         
@@ -186,7 +184,6 @@
             <button class="tool-pill" id="loopStartBtn" onclick="setLoopPoint('start')">📍 Loop In</button>
             <button class="tool-pill" id="loopEndBtn" onclick="setLoopPoint('end')">📍 Loop Out</button>
             <button class="tool-pill" id="loopToggleBtn" onclick="toggleLoopEnabled()">🔄 Loop OFF</button>
-            
             <button class="tool-pill" onclick="nudgeA(-0.05)">A&lt;</button>
             <button class="tool-pill" onclick="nudgeA(0.05)">A&gt;</button>
             <button class="tool-pill" onclick="nudgeB(-0.05)">B&lt;</button>
@@ -222,15 +219,21 @@
         const saveContainer = document.getElementById('saveContainer');
 
         let layout = 0, syncMove = false, flickerMode = false, metadataText = ""; 
-        let loopStart = 0, loopEnd = null, loopEnabled = false;
+        let loopStart = null, loopEnd = null, loopEnabled = false;
         let drawMode = false, strokes = [], currentStroke = null, drawColorIdx = 0;
         const drawColors = ["#0A84FF", "#FF3B30", "#30D158", "#FFD60A"]; 
         let drawShape = 'free', speedIdx = 3, speeds = [0.1, 0.25, 0.5, 1.0, 1.5, 2.0]; 
         let gridIdx = 0, gridSizes = [0, 3, 6, 9, 12, 16]; 
         let mirrorA = true, mirrorB = true;
         let transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
-        let pose = null, showSkeleton = false, poseResults = { A: null, B: null }, poseBusy = false, poseTarget = 'A'; 
         
+        // Pose / Skel関連変数（追加）
+        let pose = null, showSkeleton = false, poseResults = { A: null, B: null }, poseBusy = false, poseTarget = 'A'; 
+        const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
+        let skelColorIdxA = 0; // 初期: 緑
+        let skelColorIdxB = 3; // 初期: 黄
+        
+        // 音声: Aのみ
         let audioCtx, gainNodeA, destNode, analyserA, dataA;
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
         let lastTouchDist = 0, lastX = 0, lastY = 0;
@@ -240,11 +243,46 @@
             await setupAudio();
             vidA.load();
             vidB.load();
-            vidB.muted = true; 
+            vidB.muted = true; // Bは常にミュート
             vidB.volume = 0;
             resize();
             requestAnimationFrame(render);
             showUI();
+        }
+
+        // --- Skel (Mediapipe) 追加機能 ---
+        function initPose() {
+            if (pose) return;
+            try {
+                pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
+                pose.setOptions({ 
+                    modelComplexity: 1, 
+                    smoothLandmarks: true, 
+                    minDetectionConfidence: 0.5, 
+                    minTrackingConfidence: 0.5 
+                });
+                pose.onResults(onPoseResults);
+            } catch(e) { console.log("Pose Error", e); }
+        }
+
+        function onPoseResults(results) { 
+            if(poseTarget === 'A') {
+                poseResults.A = results; 
+            } else {
+                poseResults.B = results;
+            }
+        }
+        
+        function toggleSkeleton() { 
+            showSkeleton = !showSkeleton; 
+            document.getElementById('skelBtn').classList.toggle('active', showSkeleton); 
+            if(showSkeleton) initPose(); 
+        }
+
+        // --- Memo (Metadata) 追加機能 ---
+        function setMetadata() { 
+            const txt = prompt("Memo:", metadataText || new Date().toLocaleDateString()); 
+            if(txt !== null) metadataText = txt; 
         }
 
         async function setupAudio() {
@@ -258,12 +296,13 @@
                 analyserA = audioCtx.createAnalyser();
                 destNode = audioCtx.createMediaStreamDestination();
                 
+                // Aのみを接続
                 srcA.connect(gainNodeA); 
                 srcA.connect(analyserA);
-                gainNodeA.connect(audioCtx.destination); 
-                gainNodeA.connect(destNode); 
+                gainNodeA.connect(audioCtx.destination);
+                gainNodeA.connect(destNode);
                 
-                vidA.muted = false; 
+                vidA.muted = false; // Aのミュート解除
                 vidA.volume = 1.0;
                 
                 dataA = new Uint8Array(analyserA.frequencyBinCount);
@@ -278,8 +317,8 @@
             v.src = url; 
             v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
             v.load();
-            if(target === 'B') { v.muted = true; v.volume = 0; } 
-            else if(target === 'A') { v.muted = false; v.volume = 1.0; }
+            if(target === 'B') { v.muted = true; v.volume = 0; } // B読み込み時もミュート
+            else if(target === 'A') { v.muted = false; v.volume = 1.0; } // Aは音出す
         }
 
         function handleRecClick() {
@@ -330,31 +369,28 @@
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // --- ループ同期処理の修正 ---
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
-                // Aをループ開始点に戻す
-                vidA.currentTime = loopStart;
-                // BもAに合わせて同期させる（Bの現在時間 = Aのループ開始時間 - (AとBのズレ) ではない）
-                // 単純にAがループした瞬間のBの相対的な位置を維持するなら、以下のようにBも巻き戻す必要がある
-                // ここでは「AとBを完全に同期させてループさせる」という意図で実装します
-                
-                // もしAとBがずれて再生されている場合（ユーザーがシークバーでずらした場合）、
-                // その「ずれ」を維持したままループさせるには計算が必要です。
-                // 今回はシンプルに「Aが戻ったらBもAと同じ時間に戻す」か「Bも巻き戻す」かですが、
-                // リクエストの「Bの動画はちゃんと戻ってはループするように」に従い、
-                // vidB.currentTime も vidA.currentTime と同じ量だけ戻します。
-                
-                // ループ区間の長さ
-                const loopDuration = loopEnd - loopStart;
-                vidB.currentTime -= loopDuration;
+                vidA.currentTime = loopStart || 0;
+                vidB.currentTime = vidA.currentTime; 
             }
-            // ---------------------------
 
+            // Skel検出実行ロジック
             if(showSkeleton && pose && !poseBusy) {
-                let img = (poseTarget === 'A') ? vidA : vidB;
-                if(img.readyState >= 2) {
-                    poseBusy = true;
-                    pose.send({image: img}).then(() => { poseBusy = false; poseTarget = (poseTarget === 'A')?'B':'A'; });
+                let imgToProcess = null;
+                if(poseTarget === 'A') {
+                    if(vidA.readyState >= 2 && !vidA.paused) imgToProcess = vidA;
+                    else poseTarget = 'B';
+                } else {
+                    if(vidB.readyState >= 2 && !vidB.paused) imgToProcess = vidB;
+                    else poseTarget = 'A';
+                }
+
+                if(imgToProcess) {
+                    poseBusy = true; 
+                    pose.send({image: imgToProcess}).then(() => { 
+                        poseBusy = false;
+                        poseTarget = (poseTarget === 'A') ? 'B' : 'A';
+                    });
                 }
             }
 
@@ -369,25 +405,86 @@
                 ctx.drawImage(v, -dw/2, -dh/2, dw, dh); ctx.restore();
             };
 
+            // Layout分岐とSkel描画
             if (layout === 0) {
                 drawV(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
+                if(showSkeleton && poseResults.A) drawSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
+
                 drawV(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
+                if(showSkeleton && poseResults.B) drawSkeleton(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
+
                 if(ghost > 0) drawV(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
             } else if (layout === 1) {
                 drawV(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
+                if(showSkeleton && poseResults.A) drawSkeleton(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
+
                 drawV(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
+                if(showSkeleton && poseResults.B) drawSkeleton(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
             } else {
                 drawV(vidB, 0, 0, w, h, mirrorB, 1, bri, transformB);
+                if(showSkeleton && poseResults.B) drawSkeleton(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
+
                 drawV(vidA, 0, 0, w, h, mirrorA, Math.max(0.3, ghost), 100, transformA);
+                if(showSkeleton && poseResults.A) drawSkeleton(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
             }
             
             if(gridSizes[gridIdx] > 0) drawGrid();
             drawAnnotations();
-            if(metadataText) { ctx.fillStyle="white"; ctx.font="24px sans-serif"; ctx.fillText(metadataText, 20, 80); }
+            if(metadataText) { ctx.save(); ctx.font = "bold 24px sans-serif"; ctx.fillStyle = "white"; ctx.shadowColor="black"; ctx.shadowBlur=4; ctx.fillText(metadataText, 20, 80); ctx.restore(); }
             drawWaveforms();
             updateTimeDisplay();
             if(isRecording) { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill(); }
             requestAnimationFrame(render);
+        }
+
+        function drawSkeleton(results, x, y, w, h, mirror, trans, videoRef) {
+            if(!results.poseLandmarks || videoRef.readyState < 2) return;
+            
+            ctx.save();
+            ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+            
+            ctx.translate(x + w/2, y + h/2);
+            ctx.scale(trans.scale, trans.scale);
+            ctx.translate(trans.x, trans.y);
+            if (mirror) ctx.scale(-1, 1);
+
+            const videoRatio = videoRef.videoWidth / videoRef.videoHeight;
+            const canvasRatio = w / h;
+            let dw, dh;
+            if (videoRatio > canvasRatio) { dh = h; dw = h * videoRatio; } 
+            else { dw = w; dh = w / videoRatio; }
+
+            const landmarks = results.poseLandmarks.map(l => ({ 
+                x: (l.x - 0.5) * dw, 
+                y: (l.y - 0.5) * dh,
+                visibility: l.visibility
+            }));
+
+            // ビデオAかBかに応じて色を選択
+            const isA = (videoRef === vidA);
+            const currentColor = isA ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
+
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = currentColor;
+            ctx.fillStyle = "#FF0000"; // 点は赤
+
+            const connections = (typeof POSE_CONNECTIONS !== 'undefined') ? POSE_CONNECTIONS : [
+                [11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]
+            ];
+
+            for (const [start, end] of connections) {
+                if(!landmarks[start] || !landmarks[end]) continue;
+                const p1 = landmarks[start];
+                const p2 = landmarks[end];
+                if(p1.visibility > 0.5 && p2.visibility > 0.5) {
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                }
+            }
+            
+            ctx.restore();
         }
 
         async function togglePlay() {
@@ -414,7 +511,7 @@
         function changeFrame(dir) { const step = 1/30; vidA.currentTime += dir * step; vidB.currentTime += dir * step; }
         function seekInput(target, val) { if(target === 'A') vidA.currentTime = parseFloat(val); else vidB.currentTime = parseFloat(val); }
         function updateTimeDisplay() {
-            document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)} (Audio ON)`;
+            document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
             document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
             if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
             if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
@@ -426,11 +523,27 @@
             const step = waveCanvas.width / dataA.length;
             waveCtx.fillStyle = '#0A84FF'; dataA.forEach((v, i) => waveCtx.fillRect(i*step, 34 - v/8, step-1, v/8));
         }
-        function drawGrid() {
-            ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 1; const c = gridSizes[gridIdx]; ctx.beginPath();
-            for(let i=1; i<c; i++) { ctx.moveTo(i*(canvas.width/c), 0); ctx.lineTo(i*(canvas.width/c), canvas.height); ctx.moveTo(0, i*(canvas.height/c)); ctx.lineTo(canvas.width, i*(canvas.height/c)); }
-            ctx.stroke();
+        
+        // --- Grid 修正機能 ---
+        function cycleGrid() { 
+            gridIdx = (gridIdx + 1) % gridSizes.length; 
+            document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`;
         }
+        
+        function drawGrid() {
+            ctx.save(); 
+            ctx.strokeStyle = "rgba(255,255,255,0.3)"; 
+            ctx.lineWidth = 1; 
+            const c = gridSizes[gridIdx]; 
+            ctx.beginPath();
+            for(let i=1; i<c; i++) { 
+                ctx.moveTo(i*(canvas.width/c), 0); ctx.lineTo(i*(canvas.width/c), canvas.height); 
+                ctx.moveTo(0, i*(canvas.height/c)); ctx.lineTo(canvas.width, i*(canvas.height/c)); 
+            }
+            ctx.stroke();
+            ctx.restore();
+        }
+
         function drawAnnotations() {
             ctx.lineCap = "round"; ctx.lineWidth = 5;
             strokes.concat(currentStroke || []).forEach(s => {
@@ -444,7 +557,6 @@
         function toggleSyncMove() { syncMove = !syncMove; document.getElementById('syncMoveBtn').classList.toggle('active', syncMove); }
         function cycleLayout() { layout = (layout + 1) % 3; }
         function cycleSpeed() { speedIdx = (speedIdx + 1) % speeds.length; vidA.playbackRate = vidB.playbackRate = speeds[speedIdx]; document.getElementById('speedBtn').innerText = `⚡ x${speeds[speedIdx]}`; }
-        function cycleGrid() { gridIdx = (gridIdx + 1) % gridSizes.length; }
         function cycleColor() { drawColorIdx = (drawColorIdx + 1) % drawColors.length; document.getElementById('colorDot').style.background = drawColors[drawColorIdx]; }
         function cycleShape() { const ss = ['free', 'line', 'circle']; drawShape=ss[(ss.indexOf(drawShape)+1)%3]; document.getElementById('shapeBtn').innerText=drawShape; }
         function toggleDrawMode() { drawMode = !drawMode; document.getElementById('drawBtn').classList.toggle('active', drawMode); }
@@ -452,33 +564,8 @@
         function undoStroke() { strokes.pop(); }
         function clearStrokes() { strokes = []; }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
-
-        // --- ループ設定の修正 ---
-        function setLoopPoint(t) { 
-            if(t==='start') {
-                loopStart = vidA.currentTime; 
-                document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`;
-            } else { 
-                loopEnd = vidA.currentTime; 
-                document.getElementById('loopEndBtn').innerText = `📍 Out: ${formatTime(loopEnd)}`;
-            }
-            renderLoopMarkers();
-        }
-
-        function toggleLoopEnabled() { 
-            loopEnabled = !loopEnabled; 
-            const btn = document.getElementById('loopToggleBtn');
-            btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF";
-            btn.classList.toggle('loop-on', loopEnabled);
-        }
-
-        function renderLoopMarkers() {
-            const layer = document.getElementById('loopLayer'); layer.innerHTML = '';
-            if(loopStart !== null) { let d = document.createElement('div'); d.className='loop-marker start'; d.style.left=(loopStart/vidA.duration*100)+'%'; layer.appendChild(d); }
-            if(loopEnd !== null) { let d = document.createElement('div'); d.className='loop-marker'; d.style.left=(loopEnd/vidA.duration*100)+'%'; layer.appendChild(d); }
-        }
-        // -----------------------
-
+        function setLoopPoint(t) { if(t==='start') loopStart=vidA.currentTime; else loopEnd=vidA.currentTime; }
+        function toggleLoopEnabled() { loopEnabled = !loopEnabled; }
         function closeSaveUI() { saveContainer.style.display = 'none'; previewVid.src = ""; }
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
 
