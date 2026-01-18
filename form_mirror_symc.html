@@ -18,7 +18,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Pro Max - Loop Fix</title>
+    <title>Form Mirror Pro Max - Skel Custom</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -194,7 +194,10 @@
             <button class="tool-pill" onclick="undoStroke()">↩ Undo</button>
             <button class="tool-pill" onclick="clearStrokes()">🗑️ All</button>
             <button class="tool-pill" id="metaBtn" onclick="setMetadata()">📅 Memo</button>
+            
             <button class="tool-pill" id="skelBtn" onclick="toggleSkeleton()">💀 Skel</button>
+            <button class="tool-pill" id="skelWidthBtn" onclick="cycleSkelWidth()">💀 Width:6</button>
+            <button class="tool-pill" id="skelColorBtn" onclick="cycleSkelColor()"><span class="color-dot" id="skelColorDot" style="background:#00FF00"></span> 💀 Color</button>
             
             <button class="tool-pill" id="gridBtn" onclick="cycleGrid()"># Grid</button>
             <button class="tool-pill" id="gridWidthBtn" onclick="cycleGridWidth()">📏 1px</button>
@@ -231,7 +234,7 @@
         // Grid関連
         let gridIdx = 0, gridSizes = [0, 3, 6, 9, 12, 16]; 
         let gridColorIdx = 0;
-        const gridColors = ["rgba(255,255,255,0.5)", "#FF3B30", "#30D158", "#0A84FF", "#FFFF00"]; // 白, 赤, 緑, 青, 黄
+        const gridColors = ["rgba(255,255,255,0.5)", "#FF3B30", "#30D158", "#0A84FF", "#FFFF00"]; 
         const gridColorNames = ["白", "赤", "緑", "青", "黄"];
         let gridWidthIdx = 0;
         const gridWidths = [1, 3, 5, 8];
@@ -245,6 +248,10 @@
         let skelColorIdxA = 0; // 初期: 緑
         let skelColorIdxB = 3; // 初期: 黄
         
+        // 追加: Skel太さ設定
+        let skelWidthIdx = 1; 
+        const skelWidths = [2, 6, 12, 20, 30]; // 細〜極太
+
         // 音声: Aのみ
         let audioCtx, gainNodeA, destNode, analyserA, dataA;
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
@@ -474,7 +481,8 @@
             const isA = (videoRef === vidA);
             const currentColor = isA ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
 
-            ctx.lineWidth = 3;
+            // 修正: 固定幅ではなく、選択された幅を使用
+            ctx.lineWidth = skelWidths[skelWidthIdx];
             ctx.strokeStyle = currentColor;
             ctx.fillStyle = "#FF0000"; // 点は赤
 
@@ -576,7 +584,16 @@
         }
         function toggleSyncMove() { syncMove = !syncMove; document.getElementById('syncMoveBtn').classList.toggle('active', syncMove); }
         function cycleLayout() { layout = (layout + 1) % 3; }
-        function cycleSpeed() { speedIdx = (speedIdx + 1) % speeds.length; vidA.playbackRate = vidB.playbackRate = speeds[speedIdx]; document.getElementById('speedBtn').innerText = `⚡ x${speeds[speedIdx]}`; }
+        
+        function cycleSpeed() { 
+            speedIdx = (speedIdx + 1) % speeds.length; 
+            const s = speeds[speedIdx];
+            vidA.playbackRate = vidB.playbackRate = s; 
+            vidA.preservesPitch = (s === 1.0);
+            vidB.preservesPitch = (s === 1.0);
+            document.getElementById('speedBtn').innerText = `⚡ x${s}`; 
+        }
+
         function cycleColor() { drawColorIdx = (drawColorIdx + 1) % drawColors.length; document.getElementById('colorDot').style.background = drawColors[drawColorIdx]; }
         function cycleShape() { const ss = ['free', 'line', 'circle']; drawShape=ss[(ss.indexOf(drawShape)+1)%3]; document.getElementById('shapeBtn').innerText=drawShape; }
         function toggleDrawMode() { drawMode = !drawMode; document.getElementById('drawBtn').classList.toggle('active', drawMode); }
@@ -585,7 +602,19 @@
         function clearStrokes() { strokes = []; }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
 
-        // --- Loop 機能修正版 (時間表示＆マーカー復旧) ---
+        // --- 追加: Skel 設定変更関数 ---
+        function cycleSkelWidth() {
+            skelWidthIdx = (skelWidthIdx + 1) % skelWidths.length;
+            document.getElementById('skelWidthBtn').innerText = `💀 Width:${skelWidths[skelWidthIdx]}`;
+        }
+
+        function cycleSkelColor() {
+            // AとBを1つずつずらしてペアを変更する
+            skelColorIdxA = (skelColorIdxA + 1) % skelColors.length;
+            skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; 
+            document.getElementById('skelColorDot').style.background = skelColors[skelColorIdxA];
+        }
+
         function setLoopPoint(t) { 
             if(t==='start') { 
                 loopStart = vidA.currentTime; 
