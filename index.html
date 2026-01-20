@@ -13,7 +13,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
     <title>Form Mirror Pro for iPhone - Practice & Analysis Tool / フォームチェック・録画比較ツール</title>
-    <meta name="description" content="[JP] iPhoneのカメラを使って、自分の動きと見本動画をリアルタイムで比較・録画できる練習支援ツールです。ダンス、ゴルフ、スポーツのフォーム改善に最適。 [EN] A practice support tool that lets you compare and record your movements with model videos in real-time. Perfect for dance, golf, and sports form analysis.">
+    <meta name="description" content="[JP] iPhoneのカメラを使って、自分の動きと見本動画をリアルタイムで比較・録画できる練習支援ツールです。ダンス、ゴルフ、スポーツのフォーム改善に最適. [EN] A practice support tool that lets you compare and record your movements with model videos in real-time. Perfect for dance, golf, and sports form analysis.">
     <meta name="keywords" content="フォームチェック, ダンス練習, 録画比較, スポーツ上達, iPhoneアプリ, Form Analysis, Dance Practice, Sports Training, Video Comparison">
     <meta name="author" content="KuniFami Soft Studio">
     <meta name="robots" content="index, follow">
@@ -46,6 +46,48 @@
         .fade-ui { transition: opacity 0.3s ease, transform 0.3s ease; opacity: 0; pointer-events: none; }
         .ui-visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
 
+        /* 第一画面：白ベースのデザイン */
+        #loginOverlay {
+            position: fixed; inset: 0; 
+            background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+            z-index: 9000;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
+            padding: 20px; overflow-y: auto; color: #1c1c1e;
+        }
+
+        .intro-box { 
+            max-width: 500px; text-align: center; line-height: 1.6; margin-bottom: 20px; 
+            background: #fff; padding: 20px; border-radius: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #eee;
+        }
+
+        .positive-msg {
+            margin: 10px 0 20px; font-weight: bold; color: var(--primary); font-size: 16px; text-align: center;
+            letter-spacing: 0.5px;
+        }
+
+        .donation-links { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
+        .donation-links a { padding: 10px 18px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; color: #444; background: #f0f0f2; border: 1px solid #ddd; }
+        .btn-proceed { background:#007AFF; font-size:18px; width:180px; padding:15px; margin: 10px; border-radius: 15px; color: white; border: none; font-weight: bold; box-shadow: 0 4px 12px rgba(0,122,255,0.3); }
+        .btn-home { background: #8e8e93; font-size: 16px; width: 200px; padding: 12px; margin: 10px; color: white; text-decoration: none; border-radius: 15px; font-weight: bold; display: inline-block; text-align: center; }
+
+        .skill-up-area {
+            width: 100%; max-width: 400px; margin: 20px 0; padding: 20px;
+            background: #fff; border: 1px solid #eee; border-radius: 24px; text-align: left;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+        }
+        .skill-up-title { color: #1c1c1e; font-size: 14px; margin: 0 0 10px 0; text-align: center; display: block; font-weight: 800; }
+        
+        .skill-up-msg { font-size: 11px; color: #555; margin-bottom: 15px; line-height: 1.6; text-align: center; }
+        .skill-up-msg small { display: block; color: #888; margin-top: 4px; }
+
+        .random-banner {
+            background: #f8faff; padding: 16px; border-radius: 14px; margin-bottom: 15px;
+            border-left: 5px solid var(--primary); font-size: 13px; font-weight: bold; line-height: 1.5; color: #1c1c1e;
+        }
+        .resource-list { list-style: none; padding: 0; margin: 10px 0 0 0; border-top: 1px solid #eee; padding-top: 15px; }
+
+        /* メイン画面側のUI */
         .top-bar {
             position: fixed; top: 0; left: 0; right: 0;
             padding: calc(env(safe-area-inset-top) + 10px) 20px 10px;
@@ -58,12 +100,10 @@
             color: white; width: 44px; height: 44px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center; font-size: 20px;
         }
-
         .mode-badge {
             background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px;
             font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,0.1);
         }
-
         .bottom-panel {
             position: fixed; bottom: 0; left: 0; right: 0;
             padding: 10px 15px calc(env(safe-area-inset-bottom) + 10px);
@@ -73,40 +113,25 @@
             transform: translateY(100%);
         }
         .bottom-panel.ui-visible { transform: translateY(0); }
-
         .sliders-row { display: flex; align-items: center; gap: 15px; }
         .slider-group { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 12px; }
         input[type="range"] { flex: 1; height: 4px; background: #444; accent-color: var(--primary); }
-
         .time-display { font-size: 12px; color: var(--text-sub); text-align: center; font-variant-numeric: tabular-nums; }
-        
         .transport-row { display: flex; justify-content: space-around; align-items: center; }
         .play-btn-circle { width: 55px; height: 55px; background: white; color: black; border-radius: 50%; font-size: 24px; border:none; }
         .rec-btn-circle { width: 44px; height: 44px; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; background:none; }
         .rec-inner { width: 30px; height: 30px; background: var(--danger); border-radius: 50%; }
         .is-recording .rec-inner { width: 18px; height: 18px; border-radius: 4px; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
         .tools-scroll { display: flex; overflow-x: auto; gap: 8px; padding: 5px 0; -webkit-overflow-scrolling: touch; }
         .tool-pill { flex: 0 0 auto; padding: 6px 12px; border-radius: 15px; background: rgba(255,255,255,0.1); color: white; border: none; font-size: 12px; }
         .tool-pill.active { background: var(--primary); }
-
-        #loginOverlay {
-            position: fixed; inset: 0; background: #000; z-index: 9000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto;
-        }
-        .intro-box { max-width: 500px; text-align: center; line-height: 1.6; margin-bottom: 20px; background: #111; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        .donation-links { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
-        .donation-links a { padding: 10px 15px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 14px; color: white; background: #333; border: 1px solid #555; }
-        .btn-proceed { background:#007AFF; font-size:18px; width:180px; padding:15px; margin: 10px; border-radius: 15px; color: white; border: none; font-weight: bold; }
-        .btn-home { background: #8e8e93; font-size: 16px; width: 200px; padding: 12px; margin: 10px; color: white; text-decoration: none; border-radius: 15px; font-weight: bold; display: inline-block; text-align: center; }
 
         #countdownOverlay {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000;
             text-shadow: 0 0 20px rgba(0,0,0,1); pointer-events: none; display: none;
         }
-
         #saveContainer { 
             display: none; position: fixed; inset: 0; z-index: 9500; background: #000;
             flex-direction: column; align-items: center; justify-content: center;
@@ -119,35 +144,54 @@
     <div id="countdownOverlay"></div>
 
     <div id="loginOverlay">
-        <h2 style="margin-bottom: 20px; color: #007AFF;">Form Mirror Pro for iPhone v1.2</h2>
+        <h2 style="margin: 40px 0 10px; color: #007AFF; font-weight: 800;">Form Mirror Pro for iPhone ver 1.3</h2>
+        
+        <div id="positiveMessage" class="positive-msg"></div>
+
          <div class="intro-box">
-            <p style="font-size: 14px; margin: 0 0 15px 0; white-space: pre-wrap; color: #ddd;">こんにちは！便利なツールを開発しているクリエイターです。このアプリがあなたのスポーツやスキルの練習の役に立てば嬉しいです！今後も新しいプロジェクトをどんどん作っていく予定です。応援よろしくお願いします！</p>
-            <p style="font-size: 13px; margin: 0; white-space: pre-wrap; color: #aaa;">Hi! I'm a creator building useful tools. I hope this app helps your sports or skill practice! I'm planning to launch more projects. Thank you for your support!</p>
+            <p style="font-size: 14px; margin: 0 0 10px 0; color: #333; font-weight: 500;">練習を支援するツールへようこそ。<br>このアプリがあなたのスキルアップの役に立てば幸いです。</p>
+            <p style="font-size: 12px; margin: 0; color: #777;">Welcome! We hope this app helps you improve your skills and master your form.</p>
         </div> 
+
+        <div class="skill-up-area">
+            <span class="skill-up-title">🚀 更なる上達を目指して / Higher Skill</span>
+            <div id="skill-up-content">
+                <p class="skill-up-msg">
+                    反復練習にはこのツールが最適ですが、独学には限界もあります。正しいフォームへの「答え合わせ」には、プロの視点を導入するのが最短ルートです。
+                    <small>This tool is ideal for repetitive practice, but self-study has its limits. Getting professional feedback for your form is the fastest way to improve.</small>
+                </p>
+                <div id="randomSuggestion" class="random-banner"></div>
+                <ul class="resource-list" id="resourceList"></ul>
+            </div>
+        </div>
+
         <div style="width: 100%; max-width: 320px; margin: 10px 0; text-align: center;">
             <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-5115190227060860" data-ad-slot="3577508619" data-ad-format="auto" data-full-width-responsive="true"></ins>
             <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
         </div>
+        
         <div class="donation-links">
-            <a href="guide/FormMirrorProforiphone‐User Manual.html" target="_blank" style="background: #28a745; border-color: #28a745;">📖 Manual</a>
-            <a href="form_mirror_sync.html" target="_blank" style="background: #5856d6; border-color: #5856d6;">🔗 Sync & Pro Analysis（同期・プロ分析）for iPhone</a>
-            <a href="../form-mirror-pro-pc/" target="_blank" style="background: #5856d6; border-color: #5856d6;">💻 PC版</a>
+            <a href="guide/FormMirrorProforiphone‐User Manual.html" target="_blank">📖 Manual</a>
+            <a href="form_mirror_sync.html" target="_blank" style="color: #fff; background: #5856d6; border: none;">🔗 Form Mirror Sync for 
+ iPhone（同期・プロ分析）</a>
+            <a href="../form-mirror-pro-pc/" target="_blank">💻 PC版</a>
             <a href="https://ofuse.me/dfee538b" target="_blank">🇯🇵 OFUSE</a>
-            <a href="https://buymeacoffee.com/kunifami20w" target="_blank">🌎 Coffee</a>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center;">
+
+        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
             <div style="display: flex; flex-wrap: wrap; justify-content: center;">
                 <button class="btn-proceed" onclick="initAppWithLang('ja')">開始 (JP)</button>
-                <button class="btn-proceed" onclick="initAppWithLang('en')" style="background: #555;">Start (EN)</button>
+                <button class="btn-proceed" onclick="initAppWithLang('en')" style="background: #444;">Start (EN)</button>
             </div>
-            <a href="https://kunifami-soft-studio.com/" class="btn-home">🏠 ホームへ戻る</a>
+            <a href="https://kunifami-soft-studio.com/" style="color: #888; text-decoration: none; font-size: 14px; margin-top: 15px;">🏠 Home / ホームへ戻る</a>
         </div>
-         <footer style="margin-top: 40px; padding: 20px 0; text-align: center; border-top: 1px solid #333; width: 100%; max-width: 400px;">
+
+         <footer style="margin-top: auto; padding: 20px 0; text-align: center; border-top: 1px solid #eee; width: 100%; max-width: 400px;">
             <div style="margin-bottom: 10px;">
-                <a href="contact.html" style="color: #888; text-decoration: none; font-size: 13px; margin: 0 15px;">Contact / お問い合わせ</a>
-                <a href="privacy.html" style="color: #888; text-decoration: none; font-size: 13px; margin: 0 15px;">Privacy Policy / 規約</a>
+                <a href="contact.html" style="color: #999; text-decoration: none; font-size: 12px; margin: 0 10px;">Contact / お問い合わせ</a>
+                <a href="privacy.html" style="color: #999; text-decoration: none; font-size: 12px; margin: 0 10px;">Privacy Policy / 規約</a>
             </div>
-            <p style="color: #555; font-size: 10px;">&copy; 2026 KuniFami Soft Studio</p>
+            <p style="color: #bbb; font-size: 10px;">&copy; 2026 KuniFami Soft Studio</p>
         </footer>
     </div>
 
@@ -165,20 +209,15 @@
             <div class="slider-group"><span>👻</span><input type="range" id="ghostRange" min="0" max="100" value="0"></div>
             <div class="slider-group"><span>💡</span><input type="range" id="brightnessRange" min="100" max="400" value="100"></div>
         </div>
-
         <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
         <input type="range" id="seekBar" value="0" step="0.1" style="width:100%;">
-
         <div class="transport-row">
             <button class="tool-pill" id="btnLoop" onclick="toggleLoop()" style="font-size:18px;">🔁</button>
             <button class="icon-btn" onclick="modelVid.currentTime -= 5">⏪</button>
             <button class="play-btn-circle" id="playPauseBtn" onclick="togglePlay()">▶</button>
             <button class="icon-btn" onclick="modelVid.currentTime += 5">⏩</button>
-            <button class="rec-btn-circle" id="recordBtnWrapper" onclick="handleRecordClick()">
-                <div class="rec-inner"></div>
-            </button>
+            <button class="rec-btn-circle" id="recordBtnWrapper" onclick="handleRecordClick()"><div class="rec-inner"></div></button>
         </div>
-
         <div class="tools-scroll">
             <button class="tool-pill active" id="mirrorModelBtn" onclick="toggleMirror('model')">🪞 見本</button>
             <button class="tool-pill active" id="mirrorMeBtn" onclick="toggleMirror('me')">🤳 自分</button>
@@ -206,6 +245,8 @@
 
     <video id="modelVideo" loop playsinline style="display:none;" crossorigin="anonymous"></video>
     <video id="myCamera" autoplay muted playsinline style="display:none;"></video>
+
+    <script src="../ad-manager.js"></script>
 
     <script>
         const canvas = document.getElementById('mainCanvas');
