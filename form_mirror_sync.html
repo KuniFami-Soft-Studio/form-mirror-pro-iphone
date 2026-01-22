@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="ja" prefix="og: http://ogp.me/ns#">
 <head>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-1V1ELMWFTY"></script>
     <script>
@@ -212,10 +213,8 @@
     <div id="toast" class="toast">Action</div>
 
     <div id="topPanel" class="top-bar fade-ui">
-        <div style="display:flex; gap:5px; align-items:center;">
+        <div style="display:flex; gap:10px;">
             <label class="icon-btn">📂A<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'A')"></label>
-            <button class="icon-btn active" id="topMirrorA" onclick="toggleMirror('A')" style="width:36px; padding:0; font-size:14px;">🪞A</button>
-            <button class="icon-btn active" id="topMirrorB" onclick="toggleMirror('B')" style="width:36px; padding:0; font-size:14px;">🪞B</button>
             <label class="icon-btn">📂B<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'B')"></label>
         </div>
         <div style="display:flex; gap:8px;">
@@ -319,7 +318,11 @@
         let mirrorA = true, mirrorB = true;
         let transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
         
-        let pose = null, showSkeleton = false, poseResults = { A: null, B: null }, poseBusy = false, poseTarget = 'A'; 
+        // --- MultiPose Integration ---
+        let detector = null;
+        let showSkeleton = false;
+        let poseResults = { A: [], B: [] }; // Changed to arrays for multi-person
+        let poseBusy = false, poseTarget = 'A'; 
         const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
         let skelColorIdxA = 0; // 初期: 緑
         let skelColorIdxB = 3; // 初期: 黄
@@ -342,17 +345,16 @@
             showUI();
         }
 
-        function initPose() {
-            if (pose) return;
+        async function initPose() {
+            if (detector) return;
             try {
-                pose = new Pose({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`});
-                pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-                pose.onResults(onPoseResults);
-            } catch(e) { console.log("Pose Error", e); }
-        }
-
-        function onPoseResults(results) { 
-            if(poseTarget === 'A') { poseResults.A = results; } else { poseResults.B = results; }
+                // Initialize TensorFlow.js MoveNet
+                await tf.setBackend('webgl');
+                detector = await poseDetection.createDetector(
+                    poseDetection.SupportedModels.MoveNet,
+                    { modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING }
+                );
+            } catch(e) { console.log("Pose Init Error", e); }
         }
         
         function toggleSkeleton() { 
@@ -389,7 +391,6 @@
             } catch(e) { console.warn("Audio Error", e); }
         }
 
-        // --- 修正: 再開時のオーディオ復帰 ---
         function resumeAudioContext() {
             if (audioCtx && audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -461,7 +462,7 @@
                 vidB.currentTime = vidA.currentTime; 
             }
 
-            if(showSkeleton && pose && !poseBusy) {
+            if(showSkeleton && detector && !poseBusy) {
                 let imgToProcess = null;
                 if(poseTarget === 'A') {
                     if(vidA.readyState >= 2 && !vidA.paused) imgToProcess = vidA;
@@ -473,10 +474,13 @@
 
                 if(imgToProcess) {
                     poseBusy = true; 
-                    pose.send({image: imgToProcess}).then(() => { 
+                    detector.estimatePoses(imgToProcess).then((poses) => { 
+                        if(poseTarget === 'A') poseResults.A = poses; 
+                        else poseResults.B = poses;
+                        
                         poseBusy = false;
                         poseTarget = (poseTarget === 'A') ? 'B' : 'A';
-                    });
+                    }).catch(e => { console.log(e); poseBusy = false; });
                 }
             }
 
@@ -493,24 +497,24 @@
 
             if (layout === 0) {
                 drawV(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
-                if(showSkeleton && poseResults.A) drawSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
+                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
 
                 drawV(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
-                if(showSkeleton && poseResults.B) drawSkeleton(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
+                if(showSkeleton) drawMultiSkeleton(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
 
                 if(ghost > 0) drawV(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
             } else if (layout === 1) {
                 drawV(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
-                if(showSkeleton && poseResults.A) drawSkeleton(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
+                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
 
                 drawV(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
-                if(showSkeleton && poseResults.B) drawSkeleton(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
+                if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
             } else {
                 drawV(vidB, 0, 0, w, h, mirrorB, 1, bri, transformB);
-                if(showSkeleton && poseResults.B) drawSkeleton(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
+                if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
 
                 drawV(vidA, 0, 0, w, h, mirrorA, Math.max(0.3, ghost), 100, transformA);
-                if(showSkeleton && poseResults.A) drawSkeleton(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
+                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
             }
             
             if(gridSizes[gridIdx] > 0) drawGrid();
@@ -522,8 +526,9 @@
             requestAnimationFrame(render);
         }
 
-        function drawSkeleton(results, x, y, w, h, mirror, trans, videoRef) {
-            if(!results.poseLandmarks || videoRef.readyState < 2) return;
+        // MoveNet MultiPose Drawing Logic
+        function drawMultiSkeleton(poses, x, y, w, h, mirror, trans, videoRef) {
+            if(!poses || poses.length === 0 || videoRef.readyState < 2) return;
             
             ctx.save();
             ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
@@ -539,40 +544,44 @@
             if (videoRatio > canvasRatio) { dh = h; dw = h * videoRatio; } 
             else { dw = w; dh = w / videoRatio; }
 
-            const landmarks = results.poseLandmarks.map(l => ({ 
-                x: (l.x - 0.5) * dw, 
-                y: (l.y - 0.5) * dh,
-                visibility: l.visibility
-            }));
-
             const isA = (videoRef === vidA);
             const currentColor = isA ? skelColors[skelColorIdxA] : skelColors[skelColorIdxB];
-
             ctx.lineWidth = skelWidths[skelWidthIdx];
             ctx.strokeStyle = currentColor;
-            ctx.fillStyle = "#FF0000"; 
 
-            const connections = (typeof POSE_CONNECTIONS !== 'undefined') ? POSE_CONNECTIONS : [
-                [11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32]
+            // MoveNet Connections (COCO Keypoints)
+            const connections = [
+                [5,7],[7,9],[6,8],[8,10], // Arms
+                [5,6],[5,11],[6,12],[11,12], // Torso
+                [11,13],[13,15],[12,14],[14,16] // Legs
             ];
 
-            for (const [start, end] of connections) {
-                if(!landmarks[start] || !landmarks[end]) continue;
-                const p1 = landmarks[start];
-                const p2 = landmarks[end];
-                if(p1.visibility > 0.5 && p2.visibility > 0.5) {
-                    ctx.beginPath();
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
+            poses.forEach(pose => {
+                if(pose.score < 0.2) return;
+                
+                // Keypoints normalization
+                const drawPoints = pose.keypoints.map(kp => ({
+                    x: (kp.x / videoRef.videoWidth - 0.5) * dw,
+                    y: (kp.y / videoRef.videoHeight - 0.5) * dh,
+                    score: kp.score
+                }));
+
+                for (const [start, end] of connections) {
+                    if (drawPoints[start] && drawPoints[end] && 
+                        drawPoints[start].score > 0.3 && drawPoints[end].score > 0.3) {
+                        ctx.beginPath();
+                        ctx.moveTo(drawPoints[start].x, drawPoints[start].y);
+                        ctx.lineTo(drawPoints[end].x, drawPoints[end].y);
+                        ctx.stroke();
+                    }
                 }
-            }
+            });
             
             ctx.restore();
         }
 
         async function togglePlay() {
-            resumeAudioContext(); // 修正: 再生時に必ずResume
+            resumeAudioContext(); 
             if(vidA.paused) { vidA.play(); vidB.play(); } else { vidA.pause(); vidB.pause(); }
         }
 
@@ -667,11 +676,9 @@
             if(t==='A') { 
                 mirrorA = !mirrorA; 
                 document.getElementById('mirrorABtn').classList.toggle('active', mirrorA);
-                document.getElementById('topMirrorA').classList.toggle('active', mirrorA);
             } else { 
                 mirrorB = !mirrorB; 
                 document.getElementById('mirrorBBtn').classList.toggle('active', mirrorB);
-                document.getElementById('topMirrorB').classList.toggle('active', mirrorB);
             } 
         }
 
