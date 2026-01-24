@@ -14,7 +14,7 @@
     gtag('config', 'G-1V1ELMWFTY');
     </script>
 
-    <meta name="ad-mode" content="adult">
+    <meta name="ad-mode" content="kids">
     <script src="/js/ads.js" defer></script>
     
     <meta charset="UTF-8">
@@ -22,7 +22,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Sync Pro - Independent Seek</title>
+    <title>Form Mirror Sync Pro - Stable Edition</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -148,7 +148,7 @@
     <div id="countdownOverlay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000; text-shadow: 0 0 20px rgba(0,0,0,1); pointer-events: none; display: none;"></div>
 
     <div id="loginOverlay">
-        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.4</h1>
+        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.5</h1>
         
         <div id="positiveMessage" class="positive-msg"></div>
 
@@ -269,8 +269,7 @@
     <video id="videoB" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
 
     <script>
-        // --- 1. Sync Mode Configuration ---
-        const HARD_SYNC = true; // true = A is Master, B is Strictly Slaved
+        const HARD_SYNC = true;
 
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
@@ -299,7 +298,6 @@
         let mirrorA = true, mirrorB = true;
         let transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
         
-        // --- MultiPose Integration ---
         let detector = null;
         let showSkeleton = false;
         let poseResults = { A: [], B: [] }; 
@@ -314,7 +312,6 @@
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
         let lastTouchDist = 0, lastX = 0, lastY = 0;
 
-        // Sync Variables
         let syncOffset = 0;
         let isSeeking = false;
 
@@ -323,11 +320,8 @@
             await setupAudio();
             vidA.load();
             vidB.load();
-            
-            // B is silent
             vidB.muted = true;
             vidB.volume = 0;
-            
             resize();
             requestAnimationFrame(render);
             showUI();
@@ -409,7 +403,8 @@
             resumeAudioContext();
             
             if(vidA.paused) { 
-                await togglePlay();
+                vidA.play();
+                vidB.play();
             }
 
             const canvasStream = canvas.captureStream(30);
@@ -444,14 +439,12 @@
             else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
-        // --- Playback / Seeking / Sync Logic ---
-
-        // 1. Play Toggle: Reset speed and allow playback
         async function togglePlay() {
             resumeAudioContext(); 
             if (vidA.paused) {
-                // Ensure B is ready to play at proper rate
-                vidB.playbackRate = vidA.playbackRate; 
+                // 再生開始時は速度をリセット（重要）
+                vidA.playbackRate = speeds[speedIdx];
+                vidB.playbackRate = speeds[speedIdx];
                 await Promise.all([vidA.play(), vidB.play()]);
             } else {
                 vidA.pause();
@@ -459,27 +452,20 @@
             }
         }
 
-        // 2. Seeking: Flag management to prevent sync conflict
-        function startSeek() { 
-            isSeeking = true; 
-        }
+        function startSeek() { isSeeking = true; }
         
         function seeking(target, val) {
             if(target === 'A') vidA.currentTime = parseFloat(val);
             else vidB.currentTime = parseFloat(val);
         }
         
-        // 3. End Seek: CRITICAL - Update Offset Here
         function endSeek(target, val) {
             isSeeking = false;
-            const v = parseFloat(val);
             if(target === 'A') {
-                vidA.currentTime = v;
-                // Move B to match existing offset
+                vidA.currentTime = parseFloat(val);
                 vidB.currentTime = vidA.currentTime + syncOffset;
             } else {
-                vidB.currentTime = v;
-                // Update Offset based on where User placed B
+                vidB.currentTime = parseFloat(val);
                 syncOffset = vidB.currentTime - vidA.currentTime;
             }
         }
@@ -502,107 +488,108 @@
             else { vidB.currentTime = parseFloat(val); updateSyncOffset(); }
         }
 
-        // 4. Render Sync Loop
         function syncVideos() {
-            // If seeking or A is paused, do nothing (let user control)
-            if (isSeeking || vidA.paused) return;
+            if (isSeeking || vidA.paused || vidB.paused || vidB.seeking) return;
 
             const targetB = vidA.currentTime + syncOffset;
             const diff = vidB.currentTime - targetB;
             const rate = speeds[speedIdx];
 
-            // If B is still buffering/seeking, don't force it yet
-            if(vidB.seeking) return;
-
             if (HARD_SYNC) {
-                // 閾値を0.01(10ms)に設定。
-                // ズレが大きい場合のみ強制修正、それ以外は速度維持
                 if (Math.abs(diff) > 0.01) {
-                    vidB.currentTime = targetB;
+                    let newRate = rate;
+                    let correction = 0;
+                    if (diff < 0) { // B is late
+                       correction = Math.abs(diff) * 20.0;
+                       if(correction > 1.5) correction = 1.5;
+                    } else { // B is ahead
+                       correction = -Math.abs(diff) * 10.0;
+                       if(correction < -1.0) correction = -1.0;
+                    }
+                    newRate = rate + correction;
+                    
+                    // Safety Clamp (Prevent Crash)
+                    if(newRate < 0.1) newRate = 0.1;
+                    if(newRate > 3.0) newRate = 3.0;
+                    
+                    vidB.playbackRate = newRate;
+                } else {
+                    if(Math.abs(vidB.playbackRate - rate) > 0.01) vidB.playbackRate = rate;
                 }
-                // Ensure speed is correct
-                if (vidB.playbackRate !== rate) vidB.playbackRate = rate;
             }
         }
 
         function render() {
-            ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            const w = canvas.width, h = canvas.height;
-            const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
+            try {
+                ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                const w = canvas.width, h = canvas.height;
+                const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // Run Sync Logic
-            syncVideos();
+                syncVideos();
 
-            // Loop Logic
-            if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
-                vidA.currentTime = loopStart || 0;
-                vidB.currentTime = vidA.currentTime + syncOffset; 
-            }
+                if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
+                    vidA.currentTime = loopStart || 0;
+                    vidB.currentTime = vidA.currentTime + syncOffset; 
+                }
 
-            // Pose Detection
-            if(showSkeleton && detector && !poseBusy) {
-                let imgToProcess = null;
-                if(poseTarget === 'A') {
-                    if(vidA.readyState >= 2 && !vidA.paused) imgToProcess = vidA;
-                    else poseTarget = 'B';
+                if(showSkeleton && detector && !poseBusy) {
+                    let imgToProcess = null;
+                    if(poseTarget === 'A') {
+                        if(vidA.readyState >= 2 && !vidA.paused) imgToProcess = vidA;
+                        else poseTarget = 'B';
+                    } else {
+                        if(vidB.readyState >= 2 && !vidB.paused) imgToProcess = vidB;
+                        else poseTarget = 'A';
+                    }
+
+                    if(imgToProcess) {
+                        poseBusy = true; 
+                        detector.estimatePoses(imgToProcess).then((poses) => { 
+                            if(poseTarget === 'A') poseResults.A = poses; 
+                            else poseResults.B = poses;
+                            poseBusy = false;
+                            poseTarget = (poseTarget === 'A') ? 'B' : 'A';
+                        }).catch(e => { poseBusy = false; });
+                    }
+                }
+
+                const drawV = (v, x, y, w, h, mir, alp, br, tr) => {
+                    if (v.readyState < 2 || alp <= 0) return;
+                    ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.globalAlpha = alp;
+                    if (br != 100) ctx.filter = `brightness(${br}%)`;
+                    ctx.translate(x + w/2, y + h/2); ctx.scale(tr.scale, tr.scale); ctx.translate(tr.x, tr.y);
+                    if (mir) ctx.scale(-1, 1);
+                    const vr = v.videoWidth / v.videoHeight, cr = w / h;
+                    let dw = (vr > cr) ? h * vr : w, dh = (vr > cr) ? h : w / vr;
+                    ctx.drawImage(v, -dw/2, -dh/2, dw, dh); ctx.restore();
+                };
+
+                if (layout === 0) {
+                    drawV(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
+                    if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
+                    drawV(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
+                    if(showSkeleton) drawMultiSkeleton(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
+                    if(ghost > 0) drawV(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
+                } else if (layout === 1) {
+                    drawV(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
+                    if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
+                    drawV(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
+                    if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
                 } else {
-                    if(vidB.readyState >= 2 && !vidB.paused) imgToProcess = vidB;
-                    else poseTarget = 'A';
+                    drawV(vidB, 0, 0, w, h, mirrorB, 1, bri, transformB);
+                    if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
+                    drawV(vidA, 0, 0, w, h, mirrorA, Math.max(0.3, ghost), 100, transformA);
+                    if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
                 }
-
-                if(imgToProcess) {
-                    poseBusy = true; 
-                    detector.estimatePoses(imgToProcess).then((poses) => { 
-                        if(poseTarget === 'A') poseResults.A = poses; 
-                        else poseResults.B = poses;
-                        poseBusy = false;
-                        poseTarget = (poseTarget === 'A') ? 'B' : 'A';
-                    }).catch(e => { console.log(e); poseBusy = false; });
-                }
-            }
-
-            // Drawing Videos
-            const drawV = (v, x, y, w, h, mir, alp, br, tr) => {
-                if (v.readyState < 2 || alp <= 0) return;
-                ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.globalAlpha = alp;
-                if (br != 100) ctx.filter = `brightness(${br}%)`;
-                ctx.translate(x + w/2, y + h/2); ctx.scale(tr.scale, tr.scale); ctx.translate(tr.x, tr.y);
-                if (mir) ctx.scale(-1, 1);
-                const vr = v.videoWidth / v.videoHeight, cr = w / h;
-                let dw = (vr > cr) ? h * vr : w, dh = (vr > cr) ? h : w / vr;
-                ctx.drawImage(v, -dw/2, -dh/2, dw, dh); ctx.restore();
-            };
-
-            if (layout === 0) {
-                drawV(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
-                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
-
-                drawV(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawMultiSkeleton(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
-
-                if(ghost > 0) drawV(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
-            } else if (layout === 1) {
-                drawV(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
-                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
-
-                drawV(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
-            } else {
-                drawV(vidB, 0, 0, w, h, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
-
-                drawV(vidA, 0, 0, w, h, mirrorA, Math.max(0.3, ghost), 100, transformA);
-                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
-            }
-            
-            if(gridSizes[gridIdx] > 0) drawGrid();
-            drawAnnotations();
-            updateTimeDisplay();
-            if(isRecording) { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill(); }
+                
+                if(gridSizes[gridIdx] > 0) drawGrid();
+                drawAnnotations();
+                updateTimeDisplay();
+                if(isRecording) { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill(); }
+            } catch(e) { console.error(e); }
             requestAnimationFrame(render);
         }
 
-        // MoveNet Drawing
         function drawMultiSkeleton(poses, x, y, w, h, mirror, trans, videoRef) {
             if(!poses || poses.length === 0 || videoRef.readyState < 2) return;
             
@@ -659,7 +646,12 @@
             document.getElementById('topPanel').classList.add('ui-visible'); 
         }
 
-        // Utils
+        function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
+        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
+        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
+        function seekRelative(sec) { vidA.currentTime += sec; vidB.currentTime += sec; }
+        function changeFrame(dir) { const step = 1/30; vidA.currentTime += dir * step; vidB.currentTime += dir * step; }
+        
         function cycleGrid() { gridIdx = (gridIdx + 1) % gridSizes.length; document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`; }
         function cycleGridWidth() { gridWidthIdx = (gridWidthIdx + 1) % gridWidths.length; document.getElementById('gridWidthBtn').innerText = `📏 ${gridWidths[gridWidthIdx]}px`; }
         function cycleGridColor() { gridColorIdx = (gridColorIdx + 1) % gridColors.length; document.getElementById('gridColorBtn').innerText = `🎨 ${gridColorNames[gridColorIdx]}`; }
