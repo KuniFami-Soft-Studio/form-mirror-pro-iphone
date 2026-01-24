@@ -448,10 +448,7 @@
 
         // --- 4. Toggle Play (Hard Sync Logic) ---
         async function togglePlay() {
-            resumeAudioContext(); 
             if (vidA.paused) {
-                const t = vidA.currentTime;
-                vidB.currentTime = t + syncOffset; // Pre-align
                 await Promise.all([vidA.play(), vidB.play()]);
             } else {
                 vidA.pause();
@@ -498,11 +495,14 @@
         // --- 7. End Seek (Update Offset) ---
         function endSeek(target, val) {
             isSeeking = false;
-            if(target === 'A') {
+        
+            if (target === "A") {
                 vidA.currentTime = parseFloat(val);
-                vidB.currentTime = vidA.currentTime + syncOffset;
+                // Bは動かさない
+                syncOffset = vidB.currentTime - vidA.currentTime;
             } else {
                 vidB.currentTime = parseFloat(val);
+                // Aは動かさない
                 syncOffset = vidB.currentTime - vidA.currentTime;
             }
         }
@@ -511,26 +511,15 @@
 
         // --- 3. Render Loop Sync ---
         function syncVideos() {
-            // "vidB.paused" check REMOVED to ensure Slave follows Master even if lagging
-            if (isSeeking || vidA.paused) return;
-
-            const master = vidA;
-            const slave  = vidB;
-            const target = master.currentTime + syncOffset;
-            const diff   = slave.currentTime - target;
-            const rate   = speeds[speedIdx];
-
-            if (HARD_SYNC) {
-                if (Math.abs(diff) > 0.002) {   // 2ms sync threshold
-                    slave.currentTime = target;
-                }
-                slave.playbackRate = rate;
-            } else {
-                if (Math.abs(diff) > 0.5) {
-                    slave.currentTime = target;
-                } else {
-                    slave.playbackRate = rate - diff * 10;
-                }
+            if (isSeeking) return;
+            if (vidA.paused || vidB.paused) return;
+        
+            const target = vidA.currentTime + syncOffset;
+            const diff   = vidB.currentTime - target;
+        
+            // 高精度同期（今とほぼ同じ精度）
+            if (Math.abs(diff) > 0.003) {   // 3ms
+                vidB.currentTime = target;
             }
         }
 
