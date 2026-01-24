@@ -22,7 +22,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Sync Pro for iPhone ver 1.3</title>
+    <title>Form Mirror Sync Pro - Independent Seek</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -148,7 +148,7 @@
     <div id="countdownOverlay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000; text-shadow: 0 0 20px rgba(0,0,0,1); pointer-events: none; display: none;"></div>
 
     <div id="loginOverlay">
-        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.3</h1>
+        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.4</h1>
         
         <div id="positiveMessage" class="positive-msg"></div>
 
@@ -270,7 +270,7 @@
 
     <script>
         // --- 1. Sync Mode Configuration ---
-        const HARD_SYNC = true; // true = A is Master, B is strictly Slaved
+        const HARD_SYNC = true; // true = A is Master, B is Strictly Slaved
 
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
@@ -324,7 +324,7 @@
             vidA.load();
             vidB.load();
             
-            // B is silent (controlled via HARD_SYNC)
+            // B is silent
             vidB.muted = true;
             vidB.volume = 0;
             
@@ -409,8 +409,7 @@
             resumeAudioContext();
             
             if(vidA.paused) { 
-                vidA.play();
-                vidB.play();
+                await togglePlay();
             }
 
             const canvasStream = canvas.captureStream(30);
@@ -445,12 +444,14 @@
             else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
-        // --- 4. Toggle Play (Hard Sync Logic) ---
+        // --- Playback / Seeking / Sync Logic ---
+
+        // 1. Play Toggle: Reset speed and allow playback
         async function togglePlay() {
             resumeAudioContext(); 
             if (vidA.paused) {
-                // ここでvidB.currentTimeを上書きしない
-                // （手動シークでズレたsyncOffsetが既に計算されているため、再生すれば合うはず）
+                // Ensure B is ready to play at proper rate
+                vidB.playbackRate = vidA.playbackRate; 
                 await Promise.all([vidA.play(), vidB.play()]);
             } else {
                 vidA.pause();
@@ -458,81 +459,69 @@
             }
         }
 
-        function toggleUI() { 
-            const isVisible = document.getElementById('bottomPanel').classList.contains('ui-visible');
-            if(isVisible) {
-                document.getElementById('bottomPanel').classList.remove('ui-visible');
-                document.getElementById('topPanel').classList.remove('ui-visible');
-            } else { showUI(); }
-        }
-        function showUI() { 
-            document.getElementById('bottomPanel').classList.add('ui-visible'); 
-            document.getElementById('topPanel').classList.add('ui-visible'); 
-        }
-
-        function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
-        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
-        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
-        
-        // --- 6. Seek Relative (A-Master) ---
-        function seekRelative(sec) {
-            vidA.currentTime += sec;
-            vidB.currentTime = vidA.currentTime + syncOffset;
+        // 2. Seeking: Flag management to prevent sync conflict
+        function startSeek() { 
+            isSeeking = true; 
         }
         
-        // --- 5. Frame Change (A-Master) ---
-        function changeFrame(dir) {
-            const fps = 30;
-            const step = 1 / fps;
-            vidA.currentTime += dir * step;
-            vidB.currentTime = vidA.currentTime + syncOffset;
-        }
-        
-        function startSeek() { isSeeking = true; }
         function seeking(target, val) {
             if(target === 'A') vidA.currentTime = parseFloat(val);
             else vidB.currentTime = parseFloat(val);
         }
         
-        // --- 7. End Seek (Update Offset) ---
+        // 3. End Seek: CRITICAL - Update Offset Here
         function endSeek(target, val) {
             isSeeking = false;
+            const v = parseFloat(val);
             if(target === 'A') {
-                vidA.currentTime = parseFloat(val);
+                vidA.currentTime = v;
+                // Move B to match existing offset
                 vidB.currentTime = vidA.currentTime + syncOffset;
             } else {
-                vidB.currentTime = parseFloat(val);
-                // Bを動かした時は、新しいオフセットを記憶する
+                vidB.currentTime = v;
+                // Update Offset based on where User placed B
                 syncOffset = vidB.currentTime - vidA.currentTime;
             }
         }
         
         function updateSyncOffset() { syncOffset = vidB.currentTime - vidA.currentTime; }
 
-        // --- 3. Render Loop Sync ---
-        function syncVideos() {
-            // ★重要修正: seeking中は同期しない（ユーザー操作と競合して動かなくなるのを防ぐ）
-            // また、vidB.seekingがtrue（読み込み中）の場合も待つ
-            if (isSeeking || vidA.paused || vidB.paused || vidB.seeking) return;
+        function seekRelative(sec) {
+            vidA.currentTime += sec;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
+        function changeFrame(dir) {
+            const step = 1 / 30;
+            vidA.currentTime += dir * step;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
+        function seekInput(target, val) { 
+            if(target === 'A') vidA.currentTime = parseFloat(val); 
+            else { vidB.currentTime = parseFloat(val); updateSyncOffset(); }
+        }
 
-            const master = vidA;
-            const slave  = vidB;
-            const target = master.currentTime + syncOffset;
-            const diff   = slave.currentTime - target;
-            const rate   = speeds[speedIdx];
+        // 4. Render Sync Loop
+        function syncVideos() {
+            // If seeking or A is paused, do nothing (let user control)
+            if (isSeeking || vidA.paused) return;
+
+            const targetB = vidA.currentTime + syncOffset;
+            const diff = vidB.currentTime - targetB;
+            const rate = speeds[speedIdx];
+
+            // If B is still buffering/seeking, don't force it yet
+            if(vidB.seeking) return;
 
             if (HARD_SYNC) {
-                // 閾値を0.002から0.01(10ms)に緩和して、シーク戻り後のスタックを防ぐ
+                // 閾値を0.01(10ms)に設定。
+                // ズレが大きい場合のみ強制修正、それ以外は速度維持
                 if (Math.abs(diff) > 0.01) {
-                    slave.currentTime = target;
+                    vidB.currentTime = targetB;
                 }
-                if (slave.playbackRate !== rate) slave.playbackRate = rate;
-            } else {
-                if (Math.abs(diff) > 0.5) {
-                    slave.currentTime = target;
-                } else {
-                    slave.playbackRate = rate - diff * 10;
-                }
+                // Ensure speed is correct
+                if (vidB.playbackRate !== rate) vidB.playbackRate = rate;
             }
         }
 
@@ -541,14 +530,16 @@
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // Apply Hard Sync
+            // Run Sync Logic
             syncVideos();
 
+            // Loop Logic
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
                 vidA.currentTime = loopStart || 0;
                 vidB.currentTime = vidA.currentTime + syncOffset; 
             }
 
+            // Pose Detection
             if(showSkeleton && detector && !poseBusy) {
                 let imgToProcess = null;
                 if(poseTarget === 'A') {
@@ -564,13 +555,13 @@
                     detector.estimatePoses(imgToProcess).then((poses) => { 
                         if(poseTarget === 'A') poseResults.A = poses; 
                         else poseResults.B = poses;
-                        
                         poseBusy = false;
                         poseTarget = (poseTarget === 'A') ? 'B' : 'A';
                     }).catch(e => { console.log(e); poseBusy = false; });
                 }
             }
 
+            // Drawing Videos
             const drawV = (v, x, y, w, h, mir, alp, br, tr) => {
                 if (v.readyState < 2 || alp <= 0) return;
                 ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.globalAlpha = alp;
@@ -606,20 +597,17 @@
             
             if(gridSizes[gridIdx] > 0) drawGrid();
             drawAnnotations();
-            if(metadataText) { ctx.save(); ctx.font = "bold 24px sans-serif"; ctx.fillStyle = "white"; ctx.shadowColor="black"; ctx.shadowBlur=4; ctx.fillText(metadataText, 20, 80); ctx.restore(); }
-            drawWaveforms();
             updateTimeDisplay();
             if(isRecording) { ctx.fillStyle = "red"; ctx.beginPath(); ctx.arc(w - 30, 40, 10, 0, Math.PI*2); ctx.fill(); }
             requestAnimationFrame(render);
         }
 
-        // MoveNet MultiPose Drawing Logic
+        // MoveNet Drawing
         function drawMultiSkeleton(poses, x, y, w, h, mirror, trans, videoRef) {
             if(!poses || poses.length === 0 || videoRef.readyState < 2) return;
             
             ctx.save();
             ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
-            
             ctx.translate(x + w/2, y + h/2);
             ctx.scale(trans.scale, trans.scale);
             ctx.translate(trans.x, trans.y);
@@ -636,17 +624,10 @@
             ctx.lineWidth = skelWidths[skelWidthIdx];
             ctx.strokeStyle = currentColor;
 
-            // MoveNet Connections (COCO Keypoints)
-            const connections = [
-                [5,7],[7,9],[6,8],[8,10], // Arms
-                [5,6],[5,11],[6,12],[11,12], // Torso
-                [11,13],[13,15],[12,14],[14,16] // Legs
-            ];
+            const connections = [ [5,7],[7,9],[6,8],[8,10], [5,6],[5,11],[6,12],[11,12], [11,13],[13,15],[12,14],[14,16] ];
 
             poses.forEach(pose => {
                 if(pose.score < 0.2) return;
-                
-                // Keypoints normalization
                 const drawPoints = pose.keypoints.map(kp => ({
                     x: (kp.x / videoRef.videoWidth - 0.5) * dw,
                     y: (kp.y / videoRef.videoHeight - 0.5) * dh,
@@ -663,19 +644,7 @@
                     }
                 }
             });
-            
             ctx.restore();
-        }
-
-        async function togglePlay() {
-            resumeAudioContext(); 
-            if (vidA.paused) {
-                // Bを無理やりセットせず、今の位置からスタートさせる
-                await Promise.all([vidA.play(), vidB.play()]);
-            } else {
-                vidA.pause();
-                vidB.pause();
-            }
         }
 
         function toggleUI() { 
@@ -690,71 +659,16 @@
             document.getElementById('topPanel').classList.add('ui-visible'); 
         }
 
-        function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
-        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
-        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
-        
-        function seekRelative(sec) {
-            vidA.currentTime += sec;
-            vidB.currentTime = vidA.currentTime + syncOffset;
-        }
-        
-        function changeFrame(dir) {
-            const fps = 30;
-            const step = 1 / fps;
-            vidA.currentTime += dir * step;
-            vidB.currentTime = vidA.currentTime + syncOffset;
-        }
-        
-        function seekInput(target, val) { 
-            if(target === 'A') vidA.currentTime = parseFloat(val); 
-            else { vidB.currentTime = parseFloat(val); updateSyncOffset(); }
-        }
-        function updateTimeDisplay() {
-            if(!isSeeking) {
-                document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
-                document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
-                if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
-                if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
-            }
-            document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
-        }
-        function drawWaveforms() {
-            if(!analyserA || !dataA) return; analyserA.getByteFrequencyData(dataA);
-            waveCtx.clearRect(0,0, waveCanvas.width, waveCanvas.height);
-            const step = waveCanvas.width / dataA.length;
-            waveCtx.fillStyle = '#0A84FF'; dataA.forEach((v, i) => waveCtx.fillRect(i*step, 34 - v/8, step-1, v/8));
-        }
-        
-        function cycleGrid() { 
-            gridIdx = (gridIdx + 1) % gridSizes.length; 
-            document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`;
-        }
-
-        function cycleGridWidth() {
-            gridWidthIdx = (gridWidthIdx + 1) % gridWidths.length;
-            document.getElementById('gridWidthBtn').innerText = `📏 ${gridWidths[gridWidthIdx]}px`;
-        }
-
-        function cycleGridColor() {
-            gridColorIdx = (gridColorIdx + 1) % gridColors.length;
-            document.getElementById('gridColorBtn').innerText = `🎨 ${gridColorNames[gridColorIdx]}`;
-        }
-        
+        // Utils
+        function cycleGrid() { gridIdx = (gridIdx + 1) % gridSizes.length; document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`; }
+        function cycleGridWidth() { gridWidthIdx = (gridWidthIdx + 1) % gridWidths.length; document.getElementById('gridWidthBtn').innerText = `📏 ${gridWidths[gridWidthIdx]}px`; }
+        function cycleGridColor() { gridColorIdx = (gridColorIdx + 1) % gridColors.length; document.getElementById('gridColorBtn').innerText = `🎨 ${gridColorNames[gridColorIdx]}`; }
         function drawGrid() {
-            ctx.save(); 
-            ctx.strokeStyle = gridColors[gridColorIdx]; 
-            ctx.lineWidth = gridWidths[gridWidthIdx];   
-            const c = gridSizes[gridIdx]; 
-            ctx.beginPath();
-            for(let i=1; i<c; i++) { 
-                ctx.moveTo(i*(canvas.width/c), 0); ctx.lineTo(i*(canvas.width/c), canvas.height); 
-                ctx.moveTo(0, i*(canvas.height/c)); ctx.lineTo(canvas.width, i*(canvas.height/c)); 
-            }
-            ctx.stroke();
-            ctx.restore();
+            ctx.save(); ctx.strokeStyle = gridColors[gridColorIdx]; ctx.lineWidth = gridWidths[gridWidthIdx];
+            const c = gridSizes[gridIdx]; ctx.beginPath();
+            for(let i=1; i<c; i++) { ctx.moveTo(i*(canvas.width/c), 0); ctx.lineTo(i*(canvas.width/c), canvas.height); ctx.moveTo(0, i*(canvas.height/c)); ctx.lineTo(canvas.width, i*(canvas.height/c)); }
+            ctx.stroke(); ctx.restore();
         }
-
         function drawAnnotations() {
             ctx.lineCap = "round"; ctx.lineWidth = 5;
             strokes.concat(currentStroke || []).forEach(s => {
@@ -767,7 +681,6 @@
         }
         function toggleSyncMove() { syncMove = !syncMove; document.getElementById('syncMoveBtn').classList.toggle('active', syncMove); }
         function cycleLayout() { layout = (layout + 1) % 3; }
-        
         function cycleSpeed() { 
             speedIdx = (speedIdx + 1) % speeds.length; 
             const s = speeds[speedIdx];
@@ -776,78 +689,21 @@
             vidB.preservesPitch = (s === 1.0);
             document.getElementById('speedBtn').innerText = `⚡ x${s}`; 
         }
-
         function cycleColor() { drawColorIdx = (drawColorIdx + 1) % drawColors.length; document.getElementById('colorDot').style.background = drawColors[drawColorIdx]; }
         function cycleShape() { const ss = ['free', 'line', 'circle']; drawShape=ss[(ss.indexOf(drawShape)+1)%3]; document.getElementById('shapeBtn').innerText=drawShape; }
         function toggleDrawMode() { drawMode = !drawMode; document.getElementById('drawBtn').classList.toggle('active', drawMode); }
-        
-        function toggleMirror(t) { 
-            if(t==='A') { 
-                mirrorA = !mirrorA; 
-                document.getElementById('mirrorABtn').classList.toggle('active', mirrorA);
-            } else { 
-                mirrorB = !mirrorB; 
-                document.getElementById('mirrorBBtn').classList.toggle('active', mirrorB);
-            } 
-        }
-
+        function toggleMirror(t) { if(t==='A') { mirrorA = !mirrorA; document.getElementById('mirrorABtn').classList.toggle('active', mirrorA); } else { mirrorB = !mirrorB; document.getElementById('mirrorBBtn').classList.toggle('active', mirrorB); } }
         function undoStroke() { strokes.pop(); }
         function clearStrokes() { strokes = []; }
         function resetTransforms() { transformA = {scale:1,x:0,y:0}; transformB = {scale:1,x:0,y:0}; }
-
-        function cycleSkelWidth() {
-            skelWidthIdx = (skelWidthIdx + 1) % skelWidths.length;
-            document.getElementById('skelWidthBtn').innerText = `💀 Width:${skelWidths[skelWidthIdx]}`;
-        }
-
-        function cycleSkelColor() {
-            skelColorIdxA = (skelColorIdxA + 1) % skelColors.length;
-            skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; 
-            document.getElementById('skelColorDot').style.background = skelColors[skelColorIdxA];
-        }
-
-        function setLoopPoint(t) { 
-            if(t==='start') { 
-                loopStart = vidA.currentTime; 
-                document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`;
-            } else { 
-                loopEnd = vidA.currentTime; 
-                document.getElementById('loopEndBtn').innerText = `📍 Out: ${formatTime(loopEnd)}`;
-            }
-            renderLoopMarkers();
-        }
-
-        function renderLoopMarkers() {
-            const layer = document.getElementById('loopLayer'); 
-            layer.innerHTML = '';
-            if(loopStart !== null) { 
-                let d = document.createElement('div'); 
-                d.className='loop-marker'; 
-                d.style.left=(loopStart/vidA.duration*100)+'%'; 
-                d.style.background="#30D158"; 
-                layer.appendChild(d); 
-            }
-            if(loopEnd !== null) { 
-                let d = document.createElement('div'); 
-                d.className='loop-marker'; 
-                d.style.left=(loopEnd/vidA.duration*100)+'%'; 
-                layer.appendChild(d); 
-            }
-        }
-        
-        function toggleLoopEnabled() { 
-            loopEnabled = !loopEnabled;
-            const btn = document.getElementById('loopToggleBtn');
-            btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF";
-            btn.classList.toggle('loop-on', loopEnabled);
-        }
-
+        function cycleSkelWidth() { skelWidthIdx = (skelWidthIdx + 1) % skelWidths.length; document.getElementById('skelWidthBtn').innerText = `💀 Width:${skelWidths[skelWidthIdx]}`; }
+        function cycleSkelColor() { skelColorIdxA = (skelColorIdxA + 1) % skelColors.length; skelColorIdxB = (skelColorIdxB + 1) % skelColors.length; document.getElementById('skelColorDot').style.background = skelColors[skelColorIdxA]; }
+        function toggleLoopEnabled() { loopEnabled = !loopEnabled; const btn = document.getElementById('loopToggleBtn'); btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF"; btn.classList.toggle('loop-on', loopEnabled); }
         function closeSaveUI() { saveContainer.style.display = 'none'; previewVid.src = ""; }
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
 
         canvas.addEventListener('touchstart', e => {
             resumeAudioContext(); 
-            
             const rect = canvas.getBoundingClientRect();
             if (e.touches.length === 1) {
                 const t = e.touches[0];
@@ -855,7 +711,6 @@
                 if (layout === 0) activeTarget = (t.clientX < rect.width/2) ? transformA : transformB;
                 else if (layout === 1) activeTarget = (t.clientY < rect.height/2) ? transformA : transformB;
                 else activeTarget = transformA; 
-                
                 if (drawMode) currentStroke = { points: [{x: (t.clientX - rect.left) * (canvas.width/rect.width), y: (t.clientY - rect.top) * (canvas.height/rect.height)}], color: drawColors[drawColorIdx], shape: drawShape };
             } else if (e.touches.length === 2) {
                 const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
@@ -874,12 +729,7 @@
                 const t = e.touches[0];
                 const dx = (t.clientX - lastX) * 2;
                 const dy = (t.clientY - lastY) * 2;
-                if (syncMove) {
-                    transformA.x += dx; transformA.y += dy;
-                    transformB.x += dx; transformB.y += dy;
-                } else {
-                    activeTarget.x += dx; activeTarget.y += dy;
-                }
+                if (syncMove) { transformA.x += dx; transformA.y += dy; transformB.x += dx; transformB.y += dy; } else { activeTarget.x += dx; activeTarget.y += dy; }
                 lastX = t.clientX; lastY = t.clientY;
             } else if (e.touches.length === 1 && drawMode && currentStroke) {
                 const t = e.touches[0];
@@ -887,12 +737,7 @@
             } else if (e.touches.length === 2 && activeTarget) {
                 const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 const delta = dist / lastTouchDist;
-                if (syncMove) {
-                    transformA.scale *= delta;
-                    transformB.scale *= delta;
-                } else {
-                    activeTarget.scale *= delta;
-                }
+                if (syncMove) { transformA.scale *= delta; transformB.scale *= delta; } else { activeTarget.scale *= delta; }
                 lastTouchDist = dist;
             }
         }, {passive:false});
