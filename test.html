@@ -14,7 +14,7 @@
     gtag('config', 'G-1V1ELMWFTY');
     </script>
 
-    <meta name="ad-mode" content="kids">
+    <meta name="ad-mode" content="adult">
     <script src="/js/ads.js" defer></script>
     
     <meta charset="UTF-8">
@@ -22,7 +22,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <title>Form Mirror Sync Pro - Hard Sync Edition</title>
+    <title>Form Mirror Sync Pro for iPhone ver 1.3</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -148,7 +148,7 @@
     <div id="countdownOverlay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000; text-shadow: 0 0 20px rgba(0,0,0,1); pointer-events: none; display: none;"></div>
 
     <div id="loginOverlay">
-        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.2</h1>
+        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.3</h1>
         
         <div id="positiveMessage" class="positive-msg"></div>
 
@@ -409,9 +409,8 @@
             resumeAudioContext();
             
             if(vidA.paused) { 
-                const t = vidA.currentTime;
-                vidB.currentTime = t + syncOffset;
-                await Promise.all([vidA.play(), vidB.play()]);
+                vidA.play();
+                vidB.play();
             }
 
             const canvasStream = canvas.captureStream(30);
@@ -450,8 +449,8 @@
         async function togglePlay() {
             resumeAudioContext(); 
             if (vidA.paused) {
-                const t = vidA.currentTime;
-                vidB.currentTime = t + syncOffset; // Pre-align
+                // ここでvidB.currentTimeを上書きしない
+                // （手動シークでズレたsyncOffsetが既に計算されているため、再生すれば合うはず）
                 await Promise.all([vidA.play(), vidB.play()]);
             } else {
                 vidA.pause();
@@ -503,6 +502,7 @@
                 vidB.currentTime = vidA.currentTime + syncOffset;
             } else {
                 vidB.currentTime = parseFloat(val);
+                // Bを動かした時は、新しいオフセットを記憶する
                 syncOffset = vidB.currentTime - vidA.currentTime;
             }
         }
@@ -511,8 +511,9 @@
 
         // --- 3. Render Loop Sync ---
         function syncVideos() {
-            // "vidB.paused" check REMOVED to ensure Slave follows Master even if lagging
-            if (isSeeking || vidA.paused) return;
+            // ★重要修正: seeking中は同期しない（ユーザー操作と競合して動かなくなるのを防ぐ）
+            // また、vidB.seekingがtrue（読み込み中）の場合も待つ
+            if (isSeeking || vidA.paused || vidB.paused || vidB.seeking) return;
 
             const master = vidA;
             const slave  = vidB;
@@ -521,10 +522,11 @@
             const rate   = speeds[speedIdx];
 
             if (HARD_SYNC) {
-                if (Math.abs(diff) > 0.002) {   // 2ms sync threshold
+                // 閾値を0.002から0.01(10ms)に緩和して、シーク戻り後のスタックを防ぐ
+                if (Math.abs(diff) > 0.01) {
                     slave.currentTime = target;
                 }
-                slave.playbackRate = rate;
+                if (slave.playbackRate !== rate) slave.playbackRate = rate;
             } else {
                 if (Math.abs(diff) > 0.5) {
                     slave.currentTime = target;
@@ -668,8 +670,7 @@
         async function togglePlay() {
             resumeAudioContext(); 
             if (vidA.paused) {
-                const t = vidA.currentTime;
-                vidB.currentTime = t + syncOffset; // Pre-align
+                // Bを無理やりセットせず、今の位置からスタートさせる
                 await Promise.all([vidA.play(), vidB.play()]);
             } else {
                 vidA.pause();
