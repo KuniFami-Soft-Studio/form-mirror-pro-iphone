@@ -14,7 +14,7 @@
     gtag('config', 'G-1V1ELMWFTY');
     </script>
 
-    <meta name="ad-mode" content="adult">
+    <meta name="ad-mode" content="kids">
     <script src="/js/ads.js" defer></script>
     
     <meta charset="UTF-8">
@@ -22,14 +22,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <meta name="description" content="[JP] プロ仕様の2画面動画比較・フォーム分析ツール。シンクロ再生、録画、描画機能でスポーツやダンスのフォームを改善。[EN] Professional side-by-side video analysis tool. Sync, record, and improve your form for sports and dance.">
-    <meta name="keywords" content="Form Analysis, Video Sync, Sports Tech, Dance Training, フォーム分析, 動画比較, スポーツトレーニング, シンクロ再生, アプリ">
-    <meta name="author" content="Kunifami" >
-    <meta property="og:title" content="Form Mirror Pro Sync for iPhone">
-    <meta property="og:description" content="Professional video analysis tool for everyone.">
-    <meta property="og:type" content="website">
-
-    <title>Form Mirror Sync Pro for iPhone ver 1.2</title>
+    <title>Form Mirror Sync Pro - Hard Sync Edition</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -276,7 +269,8 @@
     <video id="videoB" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
 
     <script>
-        const HARD_SYNC = true; // Complete Sync Mode
+        // --- 1. Sync Mode Configuration ---
+        const HARD_SYNC = true; // true = A is Master, B is strictly Slaved
 
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
@@ -289,7 +283,7 @@
         const previewVid = document.getElementById('previewVid');
         const saveContainer = document.getElementById('saveContainer');
 
-        let layout = 0, syncMove = false, flickerMode = false, metadataText = ""; 
+        let layout = 0, syncMove = false, metadataText = ""; 
         let loopStart = null, loopEnd = null, loopEnabled = false;
         let drawMode = false, strokes = [], currentStroke = null, drawColorIdx = 0;
         const drawColors = ["#0A84FF", "#FF3B30", "#30D158", "#FFD60A"]; 
@@ -308,11 +302,11 @@
         // --- MultiPose Integration ---
         let detector = null;
         let showSkeleton = false;
-        let poseResults = { A: [], B: [] }; // Changed to arrays for multi-person
+        let poseResults = { A: [], B: [] }; 
         let poseBusy = false, poseTarget = 'A'; 
         const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
-        let skelColorIdxA = 0; // 初期: 緑
-        let skelColorIdxB = 3; // 初期: 黄
+        let skelColorIdxA = 0; 
+        let skelColorIdxB = 3; 
         let skelWidthIdx = 1; 
         const skelWidths = [2, 6, 12, 20, 30]; 
 
@@ -330,7 +324,7 @@
             vidA.load();
             vidB.load();
             
-            // VidBは完全ミュート
+            // B is silent (controlled via HARD_SYNC)
             vidB.muted = true;
             vidB.volume = 0;
             
@@ -342,7 +336,6 @@
         async function initPose() {
             if (detector) return;
             try {
-                // Initialize TensorFlow.js MoveNet
                 await tf.setBackend('webgl');
                 detector = await poseDetection.createDetector(
                     poseDetection.SupportedModels.MoveNet,
@@ -378,7 +371,7 @@
                 gainNodeA.connect(audioCtx.destination);
                 gainNodeA.connect(destNode);
                 
-                vidA.muted = false; // Aのミュート解除
+                vidA.muted = false; 
                 vidA.volume = 1.0;
                 
                 dataA = new Uint8Array(analyserA.frequencyBinCount);
@@ -453,14 +446,56 @@
             else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
-        // --- NEW: Sync & Seek Handling ---
-        function startSeek() { isSeeking = true; }
+        // --- 4. Toggle Play (Hard Sync Logic) ---
+        async function togglePlay() {
+            resumeAudioContext(); 
+            if (vidA.paused) {
+                const t = vidA.currentTime;
+                vidB.currentTime = t + syncOffset; // Pre-align
+                await Promise.all([vidA.play(), vidB.play()]);
+            } else {
+                vidA.pause();
+                vidB.pause();
+            }
+        }
+
+        function toggleUI() { 
+            const isVisible = document.getElementById('bottomPanel').classList.contains('ui-visible');
+            if(isVisible) {
+                document.getElementById('bottomPanel').classList.remove('ui-visible');
+                document.getElementById('topPanel').classList.remove('ui-visible');
+            } else { showUI(); }
+        }
+        function showUI() { 
+            document.getElementById('bottomPanel').classList.add('ui-visible'); 
+            document.getElementById('topPanel').classList.add('ui-visible'); 
+        }
+
+        function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
+        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
+        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
         
+        // --- 6. Seek Relative (A-Master) ---
+        function seekRelative(sec) {
+            vidA.currentTime += sec;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
+        // --- 5. Frame Change (A-Master) ---
+        function changeFrame(dir) {
+            const fps = 30;
+            const step = 1 / fps;
+            vidA.currentTime += dir * step;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
+        function startSeek() { isSeeking = true; }
         function seeking(target, val) {
             if(target === 'A') vidA.currentTime = parseFloat(val);
             else vidB.currentTime = parseFloat(val);
         }
         
+        // --- 7. End Seek (Update Offset) ---
         function endSeek(target, val) {
             isSeeking = false;
             if(target === 'A') {
@@ -474,8 +509,10 @@
         
         function updateSyncOffset() { syncOffset = vidB.currentTime - vidA.currentTime; }
 
+        // --- 3. Render Loop Sync ---
         function syncVideos() {
-            if (isSeeking || vidA.paused || vidB.paused) return;
+            // "vidB.paused" check REMOVED to ensure Slave follows Master even if lagging
+            if (isSeeking || vidA.paused) return;
 
             const master = vidA;
             const slave  = vidB;
@@ -484,7 +521,7 @@
             const rate   = speeds[speedIdx];
 
             if (HARD_SYNC) {
-                if (Math.abs(diff) > 0.002) {   // 2ms以上ズレたら即補正
+                if (Math.abs(diff) > 0.002) {   // 2ms sync threshold
                     slave.currentTime = target;
                 }
                 slave.playbackRate = rate;
@@ -502,7 +539,7 @@
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // --- Apply Sync ---
+            // Apply Hard Sync
             syncVideos();
 
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
@@ -632,7 +669,7 @@
             resumeAudioContext(); 
             if (vidA.paused) {
                 const t = vidA.currentTime;
-                vidB.currentTime = t + syncOffset; // 先に合わせる
+                vidB.currentTime = t + syncOffset; // Pre-align
                 await Promise.all([vidA.play(), vidB.play()]);
             } else {
                 vidA.pause();
@@ -672,7 +709,6 @@
             if(target === 'A') vidA.currentTime = parseFloat(val); 
             else { vidB.currentTime = parseFloat(val); updateSyncOffset(); }
         }
-        
         function updateTimeDisplay() {
             if(!isSeeking) {
                 document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
