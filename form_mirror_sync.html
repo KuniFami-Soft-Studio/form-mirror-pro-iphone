@@ -29,7 +29,7 @@
     <meta property="og:description" content="Professional video analysis tool for everyone.">
     <meta property="og:type" content="website">
 
-    <title>Form Mirror Sync Pro for iPhone ver 1.0</title>
+    <title>Form Mirror Sync Pro for iPhone ver 1.1</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -245,8 +245,8 @@
         </div>
         
         <div class="seek-container">
-            <input type="range" id="seekBarA" class="seek-a" min="0" step="0.001" value="0" oninput="seekInput('A', this.value)">
-            <input type="range" id="seekBarB" class="seek-b" min="0" step="0.001" value="0" oninput="seekInput('B', this.value)">
+            <input type="range" id="seekBarA" class="seek-a" min="0" step="0.001" value="0" onpointerdown="startSeek()" oninput="seeking('A', this.value)" onchange="endSeek('A', this.value)">
+            <input type="range" id="seekBarB" class="seek-b" min="0" step="0.001" value="0" onpointerdown="startSeek()" oninput="seeking('B', this.value)" onchange="endSeek('B', this.value)">
         </div>
 
         <div class="transport-row">
@@ -333,13 +333,20 @@
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
         let lastTouchDist = 0, lastX = 0, lastY = 0;
 
+        // Sync Variables
+        let syncOffset = 0;
+        let isSeeking = false;
+
         async function initApp() {
             document.getElementById('loginOverlay').style.display = 'none';
             await setupAudio();
             vidA.load();
             vidB.load();
+            
+            // VidBは完全ミュート
             vidB.muted = true;
             vidB.volume = 0;
+            
             resize();
             requestAnimationFrame(render);
             showUI();
@@ -405,7 +412,10 @@
             v.src = url; 
             v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
             v.load();
-            if(target === 'B') { v.muted = true; v.volume = 0; } 
+            if(target === 'B') { 
+                v.muted = true; v.volume = 0; 
+                syncOffset = 0;
+            } 
             else if(target === 'A') { v.muted = false; v.volume = 1.0; } 
         }
 
@@ -452,14 +462,56 @@
             else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
+        // --- Seek Handling ---
+        function startSeek() { isSeeking = true; }
+        function seeking(target, val) {
+            if(target === 'A') vidA.currentTime = parseFloat(val);
+            else vidB.currentTime = parseFloat(val);
+        }
+        function endSeek(target, val) {
+            isSeeking = false;
+            if(target === 'B') {
+                vidB.currentTime = parseFloat(val);
+                syncOffset = vidB.currentTime - vidA.currentTime;
+                vidB.playbackRate = vidA.playbackRate;
+            } else {
+                vidA.currentTime = parseFloat(val);
+                syncOffset = vidB.currentTime - vidA.currentTime;
+            }
+        }
+        function updateSyncOffset() { syncOffset = vidB.currentTime - vidA.currentTime; }
+
         function render() {
             ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
+            // --- Precise Proportional Sync ---
+            if (!isSeeking && !vidA.paused && !vidB.paused) {
+                const targetB = vidA.currentTime + syncOffset;
+                const drift = vidB.currentTime - targetB;
+                const targetRate = speeds[speedIdx];
+
+                if (Math.abs(drift) > 2.0) {
+                    vidB.currentTime = targetB;
+                } else if (Math.abs(drift) > 0.01) {
+                    let correction = 0;
+                    if (drift < 0) { // Late
+                        correction = Math.abs(drift) * 20.0;
+                        if (correction > 1.5) correction = 1.5;
+                    } else { // Ahead
+                        correction = -Math.abs(drift) * 10.0;
+                        if (correction < -1.0) correction = -1.0;
+                    }
+                    vidB.playbackRate = targetRate + correction;
+                } else {
+                    vidB.playbackRate = targetRate;
+                }
+            }
+
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
                 vidA.currentTime = loopStart || 0;
-                vidB.currentTime = vidA.currentTime; 
+                vidB.currentTime = vidA.currentTime + syncOffset; 
             }
 
             if(showSkeleton && detector && !poseBusy) {
@@ -582,7 +634,14 @@
 
         async function togglePlay() {
             resumeAudioContext(); 
-            if(vidA.paused) { vidA.play(); vidB.play(); } else { vidA.pause(); vidB.pause(); }
+            if(vidA.paused) { 
+                vidA.play(); 
+                vidB.play(); 
+            } else { 
+                vidA.pause(); 
+                vidB.pause(); 
+                vidB.currentTime = vidA.currentTime + syncOffset;
+            }
         }
 
         function toggleUI() { 
@@ -598,16 +657,21 @@
         }
 
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
-        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); }
-        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); }
+        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
+        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
         function seekRelative(sec) { vidA.currentTime += sec; vidB.currentTime += sec; }
         function changeFrame(dir) { const step = 1/30; vidA.currentTime += dir * step; vidB.currentTime += dir * step; }
-        function seekInput(target, val) { if(target === 'A') vidA.currentTime = parseFloat(val); else vidB.currentTime = parseFloat(val); }
+        function seekInput(target, val) { 
+            if(target === 'A') vidA.currentTime = parseFloat(val); 
+            else { vidB.currentTime = parseFloat(val); updateSyncOffset(); }
+        }
         function updateTimeDisplay() {
-            document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
-            document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
-            if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
-            if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
+            if(!isSeeking) {
+                document.getElementById('timeA').innerText = `A: ${formatTime(vidA.currentTime)}`;
+                document.getElementById('timeB').innerText = `B: ${formatTime(vidB.currentTime)}`;
+                if(document.activeElement !== seekA) { seekA.max = vidA.duration || 100; seekA.value = vidA.currentTime; }
+                if(document.activeElement !== seekB) { seekB.max = vidB.duration || 100; seekB.value = vidB.currentTime; }
+            }
             document.getElementById('playBtn').innerText = !vidA.paused ? "⏸" : "▶";
         }
         function drawWaveforms() {
@@ -737,7 +801,7 @@
         function resize() { canvas.width = window.innerWidth * window.devicePixelRatio; canvas.height = window.innerHeight * window.devicePixelRatio; }
 
         canvas.addEventListener('touchstart', e => {
-            resumeAudioContext(); // 修正: タッチ時にもResume
+            resumeAudioContext(); 
             
             const rect = canvas.getBoundingClientRect();
             if (e.touches.length === 1) {
