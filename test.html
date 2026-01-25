@@ -489,8 +489,9 @@
         async function setupAudio() {
             if (audioCtx) return;
             try {
+                // AudioContext初期化（レイテンシーヒント：playback）
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext();
+                audioCtx = new AudioContext({ latencyHint: "playback" });
                 
                 // --- Video A Setup (音声あり、録画にも使う) ---
                 const srcA = audioCtx.createMediaElementSource(vidA);
@@ -585,7 +586,7 @@
             else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
-        // --- シーク・同期関連の関数 (Hard Sync Logic Ported) ---
+        // --- シーク・同期関連の関数 ---
         function startSeek() {
             isSeeking = true;
         }
@@ -611,20 +612,31 @@
             syncOffset = vidB.currentTime - vidA.currentTime;
         }
         
-        // --- 移植された Hard Sync Logic ---
+        // --- 再生速度による追従方式（音飛び回避） ---
+        let lastSync = 0;
+        
         function syncVideos() {
+            const now = performance.now();
+            if (now - lastSync < 33) return; // 約30fps制限
+            lastSync = now;
+        
             if (isSeeking) return;
             if (vidA.paused || vidB.paused) return;
         
             const target = vidA.currentTime + syncOffset;
             const diff   = vidB.currentTime - target;
-        
-            // 再生速度によって許容誤差を変える
             const rate = vidA.playbackRate;
-            const threshold = (rate === 1.0) ? 0.002 : 0.01; // 倍速時は10ms許容
         
-            if (Math.abs(diff) > threshold) {
+            const HARD_LIMIT = rate === 1.0 ? 0.003 : 0.03;
+            const SOFT_LIMIT = rate === 1.0 ? 0.001 : 0.01;
+        
+            if (Math.abs(diff) > HARD_LIMIT) {
                 vidB.currentTime = target;
+            } else if (Math.abs(diff) > SOFT_LIMIT) {
+                const correction = Math.max(-0.05, Math.min(0.05, diff * 2.5));
+                vidB.playbackRate = rate - correction;
+            } else {
+                vidB.playbackRate = rate;
             }
         }
 
