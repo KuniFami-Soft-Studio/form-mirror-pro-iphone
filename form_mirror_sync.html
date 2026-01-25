@@ -22,14 +22,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
 
-    <meta name="description" content="[JP] プロ仕様の2画面動画比較・フォーム分析ツール。シンクロ再生、録画、描画機能でスポーツやダンスのフォームを改善。[EN] Professional side-by-side video analysis tool. Sync, record, and improve your form for sports and dance.">
-    <meta name="keywords" content="Form Analysis, Video Sync, Sports Tech, Dance Training, フォーム分析, 動画比較, スポーツトレーニング, シンクロ再生, アプリ">
-    <meta name="author" content="Kunifami" >
-    <meta property="og:title" content="Form Mirror Pro Sync for iPhone">
-    <meta property="og:description" content="Professional video analysis tool for everyone.">
-    <meta property="og:type" content="website">
-
-    <title>Form Mirror Sync Pro for iPhone ver 1.1</title>
+    <title>Form Mirror Sync Pro - Hard Sync Edition</title>
     <style>
         :root {
             --primary: #FFCC00;
@@ -119,7 +112,7 @@
         
         .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid white; }
 
-        /* --- 第一画面：白ベースの明るいデザイン --- */
+        /* --- スタート画面 --- */
         #loginOverlay {
             position: fixed; inset: 0; 
             background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
@@ -139,21 +132,6 @@
             letter-spacing: 0.5px;
         }
 
-        .skill-up-area {
-            width: 100%; max-width: 400px; margin: 20px 0; padding: 20px;
-            background: #fff; border: 1px solid #eee; border-radius: 24px; text-align: left;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-        }
-        .skill-up-title { color: #1c1c1e; font-size: 14px; margin: 0 0 10px 0; text-align: center; display: block; font-weight: 800; }
-        .skill-up-msg { font-size: 11px; color: #555; margin-bottom: 15px; line-height: 1.6; text-align: center; }
-        .skill-up-msg small { display: block; color: #888; margin-top: 4px; }
-
-        .random-banner {
-            background: #f8faff; padding: 16px; border-radius: 14px; margin-bottom: 15px;
-            border-left: 5px solid var(--accent); font-size: 13px; font-weight: bold; line-height: 1.5; color: #1c1c1e;
-        }
-        .resource-list { list-style: none; padding: 0; margin: 10px 0 0 0; border-top: 1px solid #eee; padding-top: 15px; }
-
         .donation-links { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
         .donation-links a { padding: 10px 18px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; color: #444; background: #f0f0f2; border: 1px solid #ddd; }
         .btn-start { background: var(--accent); font-size: 18px; padding: 15px 40px; border-radius: 30px; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 12px rgba(10,132,255,0.3); }
@@ -170,7 +148,7 @@
     <div id="countdownOverlay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000; text-shadow: 0 0 20px rgba(0,0,0,1); pointer-events: none; display: none;"></div>
 
     <div id="loginOverlay">
-        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.1</h1>
+        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.2</h1>
         
         <div id="positiveMessage" class="positive-msg"></div>
 
@@ -291,6 +269,9 @@
     <video id="videoB" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
 
     <script>
+        // --- 1. Sync Mode Configuration ---
+        const HARD_SYNC = true; // true = A is Master, B is strictly Slaved
+
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
         const vidA = document.getElementById('videoA');
@@ -302,7 +283,7 @@
         const previewVid = document.getElementById('previewVid');
         const saveContainer = document.getElementById('saveContainer');
 
-        let layout = 0, syncMove = false, flickerMode = false, metadataText = ""; 
+        let layout = 0, syncMove = false, metadataText = ""; 
         let loopStart = null, loopEnd = null, loopEnabled = false;
         let drawMode = false, strokes = [], currentStroke = null, drawColorIdx = 0;
         const drawColors = ["#0A84FF", "#FF3B30", "#30D158", "#FFD60A"]; 
@@ -321,11 +302,11 @@
         // --- MultiPose Integration ---
         let detector = null;
         let showSkeleton = false;
-        let poseResults = { A: [], B: [] }; // Changed to arrays for multi-person
+        let poseResults = { A: [], B: [] }; 
         let poseBusy = false, poseTarget = 'A'; 
         const skelColors = ["#00FF00", "#0A84FF", "#FF3B30", "#FFCC00", "#FFFFFF", "#FF00FF"];
-        let skelColorIdxA = 0; // 初期: 緑
-        let skelColorIdxB = 3; // 初期: 黄
+        let skelColorIdxA = 0; 
+        let skelColorIdxB = 3; 
         let skelWidthIdx = 1; 
         const skelWidths = [2, 6, 12, 20, 30]; 
 
@@ -343,7 +324,7 @@
             vidA.load();
             vidB.load();
             
-            // VidBは完全ミュート
+            // B is silent (controlled via HARD_SYNC)
             vidB.muted = true;
             vidB.volume = 0;
             
@@ -355,7 +336,6 @@
         async function initPose() {
             if (detector) return;
             try {
-                // Initialize TensorFlow.js MoveNet
                 await tf.setBackend('webgl');
                 detector = await poseDetection.createDetector(
                     poseDetection.SupportedModels.MoveNet,
@@ -391,7 +371,7 @@
                 gainNodeA.connect(audioCtx.destination);
                 gainNodeA.connect(destNode);
                 
-                vidA.muted = false; // Aのミュート解除
+                vidA.muted = false; 
                 vidA.volume = 1.0;
                 
                 dataA = new Uint8Array(analyserA.frequencyBinCount);
@@ -428,7 +408,11 @@
             if (!audioCtx) await setupAudio();
             resumeAudioContext();
             
-            if(vidA.paused) { vidA.play(); vidB.play(); }
+            if(vidA.paused) { 
+                const t = vidA.currentTime;
+                vidB.currentTime = t + syncOffset;
+                await Promise.all([vidA.play(), vidB.play()]);
+            }
 
             const canvasStream = canvas.captureStream(30);
             const combinedStream = new MediaStream([...canvasStream.getVideoTracks(), ...destNode.stream.getAudioTracks()]);
@@ -462,52 +446,90 @@
             else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
-        // --- Seek Handling ---
+        // --- 4. Toggle Play (Hard Sync Logic) ---
+        async function togglePlay() {
+            if (vidA.paused) {
+                await Promise.all([vidA.play(), vidB.play()]);
+            } else {
+                vidA.pause();
+                vidB.pause();
+            }
+        }
+
+        function toggleUI() { 
+            const isVisible = document.getElementById('bottomPanel').classList.contains('ui-visible');
+            if(isVisible) {
+                document.getElementById('bottomPanel').classList.remove('ui-visible');
+                document.getElementById('topPanel').classList.remove('ui-visible');
+            } else { showUI(); }
+        }
+        function showUI() { 
+            document.getElementById('bottomPanel').classList.add('ui-visible'); 
+            document.getElementById('topPanel').classList.add('ui-visible'); 
+        }
+
+        function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
+        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
+        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
+        
+        // --- 6. Seek Relative (A-Master) ---
+        function seekRelative(sec) {
+            vidA.currentTime += sec;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
+        // --- 5. Frame Change (A-Master) ---
+        function changeFrame(dir) {
+            const fps = 30;
+            const step = 1 / fps;
+            vidA.currentTime += dir * step;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
         function startSeek() { isSeeking = true; }
         function seeking(target, val) {
             if(target === 'A') vidA.currentTime = parseFloat(val);
             else vidB.currentTime = parseFloat(val);
         }
+        
+        // --- 7. End Seek (Update Offset) ---
         function endSeek(target, val) {
             isSeeking = false;
-            if(target === 'B') {
-                vidB.currentTime = parseFloat(val);
-                syncOffset = vidB.currentTime - vidA.currentTime;
-                vidB.playbackRate = vidA.playbackRate;
-            } else {
+        
+            if (target === "A") {
                 vidA.currentTime = parseFloat(val);
+                // Bは動かさない
+                syncOffset = vidB.currentTime - vidA.currentTime;
+            } else {
+                vidB.currentTime = parseFloat(val);
+                // Aは動かさない
                 syncOffset = vidB.currentTime - vidA.currentTime;
             }
         }
+        
         function updateSyncOffset() { syncOffset = vidB.currentTime - vidA.currentTime; }
+
+        // --- 3. Render Loop Sync ---
+        function syncVideos() {
+            if (isSeeking) return;
+            if (vidA.paused || vidB.paused) return;
+        
+            const target = vidA.currentTime + syncOffset;
+            const diff   = vidB.currentTime - target;
+        
+            // 高精度同期（今とほぼ同じ精度）
+            if (Math.abs(diff) > 0.002) {   // 2ms
+                vidB.currentTime = target;
+            }
+        }
 
         function render() {
             ctx.fillStyle = "#000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // --- Precise Proportional Sync ---
-            if (!isSeeking && !vidA.paused && !vidB.paused) {
-                const targetB = vidA.currentTime + syncOffset;
-                const drift = vidB.currentTime - targetB;
-                const targetRate = speeds[speedIdx];
-
-                if (Math.abs(drift) > 2.0) {
-                    vidB.currentTime = targetB;
-                } else if (Math.abs(drift) > 0.01) {
-                    let correction = 0;
-                    if (drift < 0) { // Late
-                        correction = Math.abs(drift) * 20.0;
-                        if (correction > 1.5) correction = 1.5;
-                    } else { // Ahead
-                        correction = -Math.abs(drift) * 10.0;
-                        if (correction < -1.0) correction = -1.0;
-                    }
-                    vidB.playbackRate = targetRate + correction;
-                } else {
-                    vidB.playbackRate = targetRate;
-                }
-            }
+            // Apply Hard Sync
+            syncVideos();
 
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
                 vidA.currentTime = loopStart || 0;
@@ -634,13 +656,13 @@
 
         async function togglePlay() {
             resumeAudioContext(); 
-            if(vidA.paused) { 
-                vidA.play(); 
-                vidB.play(); 
-            } else { 
-                vidA.pause(); 
-                vidB.pause(); 
-                vidB.currentTime = vidA.currentTime + syncOffset;
+            if (vidA.paused) {
+                const t = vidA.currentTime;
+                vidB.currentTime = t + syncOffset; // Pre-align
+                await Promise.all([vidA.play(), vidB.play()]);
+            } else {
+                vidA.pause();
+                vidB.pause();
             }
         }
 
@@ -659,8 +681,19 @@
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
         function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
         function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
-        function seekRelative(sec) { vidA.currentTime += sec; vidB.currentTime += sec; }
-        function changeFrame(dir) { const step = 1/30; vidA.currentTime += dir * step; vidB.currentTime += dir * step; }
+        
+        function seekRelative(sec) {
+            vidA.currentTime += sec;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
+        function changeFrame(dir) {
+            const fps = 30;
+            const step = 1 / fps;
+            vidA.currentTime += dir * step;
+            vidB.currentTime = vidA.currentTime + syncOffset;
+        }
+        
         function seekInput(target, val) { 
             if(target === 'A') vidA.currentTime = parseFloat(val); 
             else { vidB.currentTime = parseFloat(val); updateSyncOffset(); }
