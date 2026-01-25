@@ -14,27 +14,29 @@
     gtag('config', 'G-1V1ELMWFTY');
     </script>
 
-    <meta name="ad-mode" content="adult">
+    <meta name="ad-mode" content="kids">
     <script src="/js/ads.js" defer></script>
     
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
+    <meta name="google" content="notranslate">
 
-    <title>Form Mirror Sync Pro - Hard Sync Edition</title>
+    <title>まねっこミラー シンクロ - Manekko Mirror Sync</title>
+    
     <style>
         :root {
             --primary: #FFCC00;
             --accent: #0A84FF;
             --record: #FF3B30;
-            --bg-glass: rgba(15, 15, 15, 0.95);
-            --text-main: #FFFFFF;
+            --bg-glass: rgba(255, 255, 255, 0.95);
+            --text-main: #333;
         }
 
         body { 
-            margin: 0; background: #000; color: var(--text-main); 
-            font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; 
+            margin: 0; background: #000; color: #fff; 
+            font-family: "Hiragino Sans", "Meiryo", sans-serif; 
             overflow: hidden; position: fixed; width: 100%; height: 100%;
             touch-action: none; -webkit-user-select: none;
         }
@@ -49,19 +51,21 @@
             position: fixed; top: 0; left: 0; right: 0;
             padding: calc(env(safe-area-inset-top) + 10px) 15px 10px;
             display: flex; justify-content: space-between; align-items: center;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
             z-index: 100;
             transform: translateY(-100%);
+            pointer-events: none;
         }
+        .top-bar > * { pointer-events: auto; }
 
         .icon-btn {
-            background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);
-            color: white; width: 44px; height: 44px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer;
-            position: relative;
+            background: rgba(255,255,255,0.9); border: 2px solid #ccc;
+            color: #333; width: auto; min-width: 44px; height: 44px; border-radius: 22px;
+            display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; cursor: pointer;
+            padding: 0 15px; gap: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
-        .icon-btn.active { background: var(--accent); border-color: var(--accent); }
-        .icon-btn.rec-btn { border-color: var(--record); color: var(--record); font-weight: bold; width: auto; padding: 0 15px; gap: 5px; }
+        .icon-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+        .icon-btn.rec-btn { border-color: var(--record); color: var(--record); }
         .icon-btn.rec-btn.recording { background: var(--record); color: white; animation: pulse-rec 1s infinite; }
 
         @keyframes pulse-rec { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
@@ -70,142 +74,186 @@
         .bottom-panel {
             position: fixed; bottom: 0; left: 0; right: 0;
             padding: 10px 10px calc(env(safe-area-inset-bottom) + 5px);
-            background: var(--bg-glass); border-top: 1px solid #333;
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            background: var(--bg-glass); border-top-left-radius: 20px; border-top-right-radius: 20px;
             display: flex; flex-direction: column; gap: 8px; z-index: 100;
-            transform: translateY(100%);
+            
+            /* 初期状態：下に隠す */
+            transform: translateY(100%); 
+            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            
+            color: #333;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+            overflow: visible; /* ボタンがはみ出しても見えるように */
         }
         
-        .close-panel-btn {
-            position: absolute; right: 10px; top: -40px;
-            width: 36px; height: 36px; border-radius: 50%;
-            background: rgba(0,0,0,0.6); border: 1px solid #555; color: white;
+        /* 表示状態 */
+        .bottom-panel.ui-visible {
+            transform: translateY(0) !important;
+        }
+        
+        /* メニュー開閉ボタン (パネルにくっついて動く) */
+        .toggle-panel-btn {
+            position: absolute; right: 20px; top: -45px;
+            width: 44px; height: 44px; border-radius: 50%;
+            background: rgba(255,255,255,0.95); border: 2px solid #FFCC00; color: #FFCC00;
             display: flex; align-items: center; justify-content: center;
-            font-size: 18px; cursor: pointer; backdrop-filter: blur(5px);
+            font-size: 20px; cursor: pointer; box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            pointer-events: auto; z-index: 1000;
         }
 
-        .wave-container { height: 34px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; position: relative; }
+        .wave-container { height: 34px; background: #eee; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #ddd; }
         #waveCanvas { width: 100%; height: 100%; }
 
         .sliders-row { display: flex; align-items: center; gap: 10px; }
-        .slider-group { flex: 1; display: flex; align-items: center; gap: 5px; font-size: 11px; color: #ccc; }
+        .slider-group { flex: 1; display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: bold; color: #555; }
         
         input[type="range"] { flex: 1; -webkit-appearance: none; background: transparent; height: 30px; }
-        input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: #444; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: #ddd; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); margin-top: -8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         
         .seek-container { display: flex; flex-direction: column; gap: 12px; width: 100%; position: relative; padding: 5px 0; }
-        .loop-marker { position: absolute; top: 0; width: 2px; height: 100%; background: #FF3B30; pointer-events: none; z-index: 5; }
+        .loop-marker { position: absolute; top: 0; width: 4px; height: 100%; background: #FF3B30; pointer-events: none; z-index: 5; opacity: 0.7; }
 
-        .seek-a::-webkit-slider-runnable-track { background: var(--accent) !important; }
-        .seek-a::-webkit-slider-thumb { border: 2px solid var(--accent); }
-        .seek-b::-webkit-slider-runnable-track { background: var(--primary) !important; }
-        .seek-b::-webkit-slider-thumb { border: 2px solid var(--primary); }
+        .seek-a::-webkit-slider-runnable-track { background: #A0CFFF !important; }
+        .seek-a::-webkit-slider-thumb { background: #007AFF; }
+        .seek-b::-webkit-slider-runnable-track { background: #FFEB99 !important; }
+        .seek-b::-webkit-slider-thumb { background: #FFCC00; }
 
         .transport-row { display: flex; justify-content: space-around; align-items: center; margin: 5px 0; }
-        .play-btn { width: 70px; height: 70px; background: var(--primary); color: black; border-radius: 50%; font-size: 32px; border:none; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .play-btn { width: 70px; height: 70px; background: var(--primary); color: white; border-radius: 50%; font-size: 32px; border:none; box-shadow: 0 4px 0 #E65100; cursor: pointer; }
+        .play-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #E65100; }
+        .sub-btn { background: transparent; border: none; font-size: 24px; color: #333; cursor: pointer; }
 
         .tools-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
-        .tool-pill { flex: 0 0 auto; padding: 8px 14px; border-radius: 20px; background: #333; color: white; border: none; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-        .tool-pill.active { background: var(--accent); }
-        .tool-pill.loop-on { background: var(--record); border: 1px solid white; }
+        .tool-pill { flex: 0 0 auto; padding: 10px 16px; border-radius: 20px; background: #eee; color: #555; border: none; font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .tool-pill.active { background: var(--accent); color: white; }
+        .tool-pill.loop-on { background: var(--record); color: white; }
         
-        .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid white; }
+        .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.2); }
 
         /* --- スタート画面 --- */
         #loginOverlay {
             position: fixed; inset: 0; 
-            background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+            background: linear-gradient(135deg, #FFF3E0 0%, #81D4FA 100%);
             z-index: 9000;
             display: flex; flex-direction: column; align-items: center; justify-content: flex-start; 
             padding: 20px; overflow-y: auto; color: #1c1c1e;
         }
 
         .intro-box { 
-            max-width: 500px; text-align: center; line-height: 1.6; margin-bottom: 20px; 
-            background: #fff; padding: 20px; border-radius: 20px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid #eee;
+            max-width: 450px; text-align: center; line-height: 1.6; margin-bottom: 20px; 
+            background: #fff; padding: 25px; border-radius: 25px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 4px solid var(--accent);
         }
 
-        .positive-msg {
-            margin: 10px 0 20px; font-weight: bold; color: var(--accent); font-size: 16px; text-align: center;
-            letter-spacing: 0.5px;
+        .title-emoji { font-size: 50px; margin-bottom: 5px; }
+
+        .privacy-alert {
+            background: #E8F5E9; border: 2px solid #4CAF50; border-radius: 15px;
+            padding: 15px; margin-top: 15px; text-align: left; font-size: 12px; color: #2E7D32; line-height: 1.5;
         }
 
-        .donation-links { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
-        .donation-links a { padding: 10px 18px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; color: #444; background: #f0f0f2; border: 1px solid #ddd; }
-        .btn-start { background: var(--accent); font-size: 18px; padding: 15px 40px; border-radius: 30px; color: white; border: none; font-weight: bold; cursor: pointer; margin-top: 20px; box-shadow: 0 4px 12px rgba(10,132,255,0.3); }
-        .btn-home { color: #888; text-decoration: none; font-size: 14px; margin-top: 15px; }
+        .btn-container { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 300px; margin-bottom: 20px; }
+        
+        .btn-proceed { 
+            background: var(--accent); font-size: 20px; padding: 15px; width: 100%;
+            border-radius: 40px; color: white; border: none; font-weight: 800; 
+            box-shadow: 0 6px 0 #0056b3; cursor: pointer; transition: transform 0.1s;
+        }
+        .btn-proceed:active { transform: translateY(4px); box-shadow: 0 2px 0 #0056b3; }
+        .btn-en { background: #009688; box-shadow: 0 6px 0 #00695c; }
+        .btn-en:active { transform: translateY(4px); box-shadow: 0 2px 0 #00695c; }
 
-        #saveContainer { display: none; position: fixed; inset: 0; z-index: 9500; background: #000; flex-direction: column; align-items: center; justify-content: center; }
-        #previewVid { width: 100%; max-height: 60vh; margin-bottom: 20px; background: #222; border-radius: 8px; }
+        .btn-manual {
+            background: #FF9800; font-size: 16px; padding: 12px; width: 100%;
+            border-radius: 40px; color: white; border: none; font-weight: bold;
+            box-shadow: 0 4px 0 #E65100; cursor: pointer; display: block; text-decoration: none;
+        }
+
+        .btn-home { color: #888; text-decoration: none; font-size: 14px; margin-top: 10px; display: inline-block; padding: 10px; }
+
+        #saveContainer { display: none; position: fixed; inset: 0; z-index: 9500; background: rgba(255,255,255,0.95); flex-direction: column; align-items: center; justify-content: center; }
+        #previewVid { width: 90%; max-height: 60vh; margin-bottom: 20px; background: #000; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .hidden-vid { position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 200; }
+        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 15px 30px; border-radius: 30px; pointer-events: none; opacity: 0; transition: opacity 0.5s; z-index: 200; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div id="countdownOverlay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000; text-shadow: 0 0 20px rgba(0,0,0,1); pointer-events: none; display: none;"></div>
+    <div id="countdownOverlay" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; font-weight: bold; color: #ffcc00; z-index: 5000; text-shadow: 4px 4px 0 #000; pointer-events: none; display: none;"></div>
 
     <div id="loginOverlay">
-        <h1 style="margin: 40px 0 10px; color: var(--accent); font-weight: 800;">Form Mirror Sync Pro ver 1.2</h1>
+        <div class="title-emoji">🤸‍♂️🎥</div>
+        <h1 style="margin: 0 0 10px; color: var(--accent); font-weight: 900; font-size: 22px;">まねっこミラー シンクロ for iPhone</h1>
+        <p style="margin: 0 0 15px; font-weight: bold; color: #666; font-size: 14px;">Manekko Mirror Sync for iPhone</p>
         
-        <div id="positiveMessage" class="positive-msg"></div>
-
          <div class="intro-box">
-            <p style="font-size: 14px; margin: 0 0 10px 0; color: #333; font-weight: 500;">プロ仕様のモーション分析ツールへようこそ。<br>2つの動画をシンクロさせて、理想のフォームを追求しましょう。</p>
-            <p style="font-size: 12px; margin: 0; color: #777;">Welcome! Pursue your ideal form by syncing two videos for professional analysis.</p>
+            <p style="font-size: 15px; margin: 0 0 10px 0; color: #333; font-weight: bold;">
+                2つの動画(どうが)を ならべて<br>
+                動きを くらべて みよう！
+            </p>
+            <p style="font-size: 12px; margin: 0; color: #666; line-height: 1.4;">
+                動画A(お手本) と 動画B(自分) をえらんでね。<br>
+                Compare two videos side-by-side!
+            </p>
+
+            <div class="privacy-alert">
+                ✅ <strong>あんしん・あんぜん / Safety</strong><br>
+                動画は <strong>このスマホの中だけで</strong> 動きます。<br>
+                インターネットには送られません。<br>
+                <br>
+                ✅ <strong>広告について / Ads</strong><br>
+                子供向け（COPPA準拠）の安全な広告のみ表示されます。<br>
+                Only safe, non-personalized ads are shown.
+            </div>
         </div> 
 
-        <div class="donation-links">
-            <a href="guide/FormMirrorSyncforiphone‐UserManual.html" target="_blank">📖 Manual</a>
-            <a href="index.html" target="_blank">📱 Form Mirror Pro for iPhone</a>
-            <a href="../form-mirror-pro-pc/" target="_blank">💻 For Mirror Pro for PC</a>
-            <a href="https://ofuse.me/dfee538b" target="_blank">🇯🇵 OFUSE</a>
- <a href="https://buymeacoffee.com/kunifami20w" target="_blank">🌎 Buy me a Coffee</a>
+        <div class="btn-container">
+            <button class="btn-proceed" onclick="initAppWithLang('ja')">🇯🇵 日本語でスタート</button>
+            <button class="btn-proceed btn-en" onclick="initAppWithLang('en')">🇺🇸 Start in English</button>
+            <a href="/kids/guide/formmirrorproSync-kids_guide.html" target="_blank" class="btn-manual">📖 マニュアル (Manual)</a>
         </div>
 
-        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
-            <button class="btn-start" onclick="initApp()">開始する / Start</button>
-            <a href="https://kunifami-soft-studio.com/" class="btn-home">🏠 ホームへ戻る</a>
-        </div>
+        <a href="/kids/menu.html" class="btn-home">🏠 メニューへ戻る (Menu)</a>
 
          <footer style="margin-top: auto; padding: 20px 0; text-align: center; border-top: 1px solid #eee; width: 100%; max-width: 400px;">
             <div style="margin-bottom: 10px;">
-                <a href="contact.html" style="color: #999; text-decoration: none; font-size: 12px; margin: 0 10px;">Contact / お問い合わせ</a>
-                <a href="privacy.html" style="color: #999; text-decoration: none; font-size: 12px; margin: 0 10px;">Privacy Policy / 規約</a>
+                <a href="privacy.html" style="color: #999; text-decoration: none; font-size: 12px; margin: 0 10px;">Privacy Policy</a>
             </div>
-            <p style="color: #bbb; font-size: 10px;">&copy; 2026 KuniFami Soft Studio</p>
+            <p style="color: #ccc; font-size: 10px;">&copy; 2026 KuniFami Soft Studio</p>
         </footer>    
     </div>
 
     <div id="saveContainer">
-        <h3 style="color:white; margin-bottom:10px;">録画完了 / Recorded</h3>
+        <h3 id="saveTitle" style="color:#333; margin-bottom:10px;">ろくが しました！</h3>
         <video id="previewVid" playsinline controls></video>
         <div style="display:flex; gap:15px; width:90%; max-width:400px;">
-            <button onclick="closeSaveUI()" style="flex:1; padding:15px; border-radius:12px; background:#333; color:white; border:none; font-weight:bold;">閉じる / Close</button>
-            <button id="shareBtn" onclick="shareVideo()" style="flex:2; padding:15px; border-radius:12px; background:var(--primary); color:black; border:none; font-weight:bold;">保存・共有 / Save</button>
+            <button id="btnCloseSave" onclick="closeSaveUI()" style="flex:1; padding:15px; border-radius:30px; background:#ddd; color:#333; border:none; font-weight:bold;">とじる</button>
+            <button id="btnSaveFile" onclick="shareVideo()" style="flex:2; padding:15px; border-radius:30px; background:var(--primary); color:white; border:none; font-weight:bold; box-shadow: 0 4px 0 #E65100;">ほぞん する</button>
         </div>
+        <p id="saveMsg" style="font-size:12px; color:#666; margin-top:15px;">※ ほぞんボタンを押すと、写真アプリなどに保存できます。</p>
     </div>
 
     <div id="toast" class="toast">Action</div>
 
     <div id="topPanel" class="top-bar fade-ui">
-        <div style="display:flex; gap:10px;">
-            <label class="icon-btn">📂A<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'A')"></label>
-            <label class="icon-btn">📂B<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'B')"></label>
+        <div style="display:flex; gap:5px; align-items:center;">
+            <label class="icon-btn" id="lblFileA">📂 動画A<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'A')"></label>
+            <label class="icon-btn" id="lblFileB">📂 動画B<input type="file" hidden accept="video/*" onclick="this.value=null" onchange="loadVideo(event, 'B')"></label>
         </div>
         <div style="display:flex; gap:8px;">
-            <button class="icon-btn" id="syncMoveBtn" onclick="toggleSyncMove()" style="font-size:12px; width:auto; padding:0 10px;">🔗 SyncPos</button>
-            <button class="icon-btn rec-btn" id="recBtn" onclick="handleRecClick()">● REC</button>
+            <button class="icon-btn" id="syncMoveBtn" onclick="toggleSyncMove()" style="font-size:12px; padding:0 10px;">🔗 一緒に動く</button>
+            <button class="icon-btn rec-btn" id="recBtn" onclick="handleRecClick()">● ろくが</button>
         </div>
-        <button class="icon-btn" id="layoutBtn" onclick="cycleLayout()">📺</button>
+        <button class="icon-btn" id="layoutBtn" onclick="cycleLayout()">📺 レイアウト</button>
     </div>
 
     <canvas id="mainCanvas" onclick="toggleUI()"></canvas>
 
     <div id="bottomPanel" class="bottom-panel fade-ui">
-        <div class="close-panel-btn" onclick="event.stopPropagation(); toggleUI();">▼</div>
+        <div class="toggle-panel-btn" onclick="event.stopPropagation(); toggleUI();">
+            <span id="toggleIcon">▼</span>
+        </div>
 
         <div class="wave-container">
             <canvas id="waveCanvas"></canvas>
@@ -213,13 +261,13 @@
         </div>
         
         <div class="sliders-row">
-            <div class="slider-group"><span>👻</span><input type="range" id="ghostRange" min="0" max="100" value="0"></div>
-            <div class="slider-group"><span>💡</span><input type="range" id="brightnessRange" min="50" max="250" value="100"></div>
+            <div class="slider-group"><span id="lblGhost">👻 かさねる</span><input type="range" id="ghostRange" min="0" max="100" value="0"></div>
+            <div class="slider-group"><span id="lblBright">💡 あかるさ</span><input type="range" id="brightnessRange" min="50" max="250" value="100"></div>
         </div>
         
-        <div style="display:flex; justify-content:space-between; font-size:11px; color:#aaa; font-family: monospace;">
-            <span id="timeA" style="color:var(--accent)">A: 0:00.00</span>
-            <span id="timeB" style="color:var(--primary)">B: 0:00.00</span>
+        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:bold; color:#555; font-family: monospace;">
+            <span id="timeA" style="color:#007AFF">A: 0:00.00</span>
+            <span id="timeB" style="color:#FF9500">B: 0:00.00</span>
         </div>
         
         <div class="seek-container">
@@ -228,40 +276,47 @@
         </div>
 
         <div class="transport-row">
-            <button class="icon-btn" onclick="seekRelative(-5)">⏪</button>
-            <button class="icon-btn" onclick="changeFrame(-1)">-1</button>
+            <button class="sub-btn" onclick="seekRelative(-5)">⏪</button>
+            <button class="sub-btn" id="btnPrevFrame" onclick="changeFrame(-1)" style="font-size:18px;">-1コマ</button>
             <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
-            <button class="icon-btn" onclick="changeFrame(1)">+1</button>
-            <button class="icon-btn" onclick="seekRelative(5)">⏩</button>
+            <button class="sub-btn" id="btnNextFrame" onclick="changeFrame(1)" style="font-size:18px;">+1コマ</button>
+            <button class="sub-btn" onclick="seekRelative(5)">⏩</button>
         </div>
 
         <div class="tools-scroll">
-            <button class="tool-pill" id="loopStartBtn" onclick="setLoopPoint('start')">📍 Loop In</button>
-            <button class="tool-pill" id="loopEndBtn" onclick="setLoopPoint('end')">📍 Loop Out</button>
-            <button class="tool-pill" id="loopToggleBtn" onclick="toggleLoopEnabled()">🔄 Loop OFF</button>
-            <button class="tool-pill" onclick="nudgeA(-0.05)">A&lt;</button>
-            <button class="tool-pill" onclick="nudgeA(0.05)">A&gt;</button>
-            <button class="tool-pill" onclick="nudgeB(-0.05)">B&lt;</button>
-            <button class="tool-pill" onclick="nudgeB(0.05)">B&gt;</button>
-            <button class="tool-pill" id="drawBtn" onclick="toggleDrawMode()">✏️ Draw</button>
-            <button class="tool-pill" id="colorBtn" onclick="cycleColor()"><span class="color-dot" id="colorDot" style="background:#0A84FF"></span> Color</button>
-            <button class="tool-pill" id="shapeBtn" onclick="cycleShape()">〰️ Free</button>
-            <button class="tool-pill" onclick="undoStroke()">↩ Undo</button>
-            <button class="tool-pill" onclick="clearStrokes()">🗑️ All</button>
-            <button class="tool-pill" id="metaBtn" onclick="setMetadata()">📅 Memo</button>
+            <button class="tool-pill" id="loopStartBtn" onclick="setLoopPoint('start')">📍 ここから</button>
+            <button class="tool-pill" id="loopEndBtn" onclick="setLoopPoint('end')">📍 ここまで</button>
+            <button class="tool-pill" id="loopToggleBtn" onclick="toggleLoopEnabled()">🔄 くりかえし</button>
             
-            <button class="tool-pill" id="skelBtn" onclick="toggleSkeleton()">💀 Skel</button>
-            <button class="tool-pill" id="skelWidthBtn" onclick="cycleSkelWidth()">💀 Width:6</button>
-            <button class="tool-pill" id="skelColorBtn" onclick="cycleSkelColor()"><span class="color-dot" id="skelColorDot" style="background:#00FF00"></span> 💀 Color</button>
+            <div style="width:1px; background:#ccc; margin:0 5px;"></div>
             
-            <button class="tool-pill" id="gridBtn" onclick="cycleGrid()"># Grid</button>
+            <button class="tool-pill" onclick="nudgeA(-0.05)">A &lt;</button>
+            <button class="tool-pill" onclick="nudgeA(0.05)">A &gt;</button>
+            <button class="tool-pill" onclick="nudgeB(-0.05)">B &lt;</button>
+            <button class="tool-pill" onclick="nudgeB(0.05)">B &gt;</button>
+            
+            <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+
+            <button class="tool-pill" id="drawBtn" onclick="toggleDrawMode()">✏️ おえかき</button>
+            <button class="tool-pill" id="btnClear" onclick="clearStrokes()" style="background:#FF453A; color:white;">🗑️ ぜんぶけす</button> <button class="tool-pill" id="colorBtn" onclick="cycleColor()"><span class="color-dot" id="colorDot" style="background:#0A84FF"></span> いろ</button>
+            <button class="tool-pill" id="shapeBtn" onclick="cycleShape()">〰️ じゆう</button>
+            <button class="tool-pill" id="btnUndo" onclick="undoStroke()">↩ もどす</button>
+            <button class="tool-pill" id="metaBtn" onclick="setMetadata()">📅 メモ</button>
+            
+            <div style="width:1px; background:#ccc; margin:0 5px;"></div>
+
+            <button class="tool-pill" id="skelBtn" onclick="toggleSkeleton()">💀 ほね (AI)</button>
+            <button class="tool-pill" id="skelWidthBtn" onclick="cycleSkelWidth()">💀 ふとさ:6</button>
+            <button class="tool-pill" id="skelColorBtn" onclick="cycleSkelColor()"><span class="color-dot" id="skelColorDot" style="background:#00FF00"></span> 💀 いろ</button>
+            
+            <button class="tool-pill" id="gridBtn" onclick="cycleGrid()"># せん</button>
             <button class="tool-pill" id="gridWidthBtn" onclick="cycleGridWidth()">📏 1px</button>
             <button class="tool-pill" id="gridColorBtn" onclick="cycleGridColor()">🎨 白</button>
 
-            <button class="tool-pill active" id="mirrorABtn" onclick="toggleMirror('A')">🪞A</button>
-            <button class="tool-pill active" id="mirrorBBtn" onclick="toggleMirror('B')">🪞B</button>
-            <button class="tool-pill" id="speedBtn" onclick="cycleSpeed()">⚡ x1.0</button>
-            <button class="tool-pill" onclick="resetTransforms()">🔄 Reset</button>
+            <button class="tool-pill active" id="mirrorABtn" onclick="toggleMirror('A')">🪞Aはんてん</button>
+            <button class="tool-pill active" id="mirrorBBtn" onclick="toggleMirror('B')">🪞Bはんてん</button>
+            <button class="tool-pill" id="speedBtn" onclick="cycleSpeed()">⚡ はやさ x1.0</button>
+            <button class="tool-pill" id="btnReset" onclick="resetTransforms()">🔄 位置リセット</button>
         </div>
     </div>
 
@@ -269,8 +324,36 @@
     <video id="videoB" class="hidden-vid" playsinline webkit-playsinline muted preload="auto" loop crossorigin="anonymous"></video>
 
     <script>
-        // --- 1. Sync Mode Configuration ---
-        const HARD_SYNC = true; // true = A is Master, B is strictly Slaved
+        // --- 言語データ ---
+        const TRANSLATIONS = {
+            ja: {
+                fileA: "📂 動画A", fileB: "📂 動画B",
+                sync: "🔗 一緒に動く", rec: "● ろくが", stop: "■ とめる", layout: "📺 レイアウト",
+                ghost: "👻 かさねる", bright: "💡 あかるさ",
+                prevFrame: "-1コマ", nextFrame: "+1コマ",
+                loopStart: "📍 ここから", loopEnd: "📍 ここまで", loopOn: "🔄 くりかえし ON", loopOff: "🔄 くりかえし OFF",
+                draw: "✏️ おえかき", color: " いろ", shape: "〰️ じゆう", undo: "↩ もどす", clear: "🗑️ ぜんぶけす", memo: "📅 メモ",
+                skel: "💀 ほね (AI)", skelWidth: "💀 ふとさ", skelColor: "💀 いろ",
+                grid: "# せん", gridWidth: "📏 ふとさ", gridColor: "🎨 いろ",
+                mirrorA: "🪞Aはんてん", mirrorB: "🪞Bはんてん", speed: "⚡ はやさ", reset: "🔄 位置リセット",
+                saveTitle: "ろくが しました！", close: "とじる", save: "ほぞん する", saveMsg: "※ ほぞんボタンを押すと、写真アプリなどに保存できます。",
+                memoPrompt: "メモを入力してね:"
+            },
+            en: {
+                fileA: "📂 Video A", fileB: "📂 Video B",
+                sync: "🔗 Sync Pos", rec: "● REC", stop: "■ STOP", layout: "📺 Layout",
+                ghost: "👻 Ghost", bright: "💡 Brightness",
+                prevFrame: "-1 Frame", nextFrame: "+1 Frame",
+                loopStart: "📍 Loop In", loopEnd: "📍 Loop Out", loopOn: "🔄 Loop ON", loopOff: "🔄 Loop OFF",
+                draw: "✏️ Draw", color: " Color", shape: "〰️ Free", undo: "↩ Undo", clear: "🗑️ Clear All", memo: "📅 Memo",
+                skel: "💀 AI Skel", skelWidth: "💀 Width", skelColor: "💀 Color",
+                grid: "# Grid", gridWidth: "📏 Width", gridColor: "🎨 Color",
+                mirrorA: "🪞 Mirror A", mirrorB: "🪞 Mirror B", speed: "⚡ Speed", reset: "🔄 Reset Pos",
+                saveTitle: "Recording Done!", close: "Close", save: "Save Video", saveMsg: "* Tap Save to download to your Photos app.",
+                memoPrompt: "Enter your memo:"
+            }
+        };
+        let currentLang = 'ja';
 
         const canvas = document.getElementById('mainCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
@@ -292,14 +375,13 @@
         let gridIdx = 0, gridSizes = [0, 3, 6, 9, 12, 16]; 
         let gridColorIdx = 0;
         const gridColors = ["rgba(255,255,255,0.5)", "#FF3B30", "#30D158", "#0A84FF", "#FFFF00"]; 
-        const gridColorNames = ["白", "赤", "緑", "青", "黄"];
+        const gridColorNames = ["白/White", "赤/Red", "緑/Green", "青/Blue", "黄/Yellow"];
         let gridWidthIdx = 0;
         const gridWidths = [1, 3, 5, 8];
 
         let mirrorA = true, mirrorB = true;
         let transformA = { scale: 1, x: 0, y: 0 }, transformB = { scale: 1, x: 0, y: 0 }, activeTarget = null; 
         
-        // --- MultiPose Integration ---
         let detector = null;
         let showSkeleton = false;
         let poseResults = { A: [], B: [] }; 
@@ -314,17 +396,64 @@
         let mediaRecorder = null, recordedChunks = [], isRecording = false, lastBlob = null;
         let lastTouchDist = 0, lastX = 0, lastY = 0;
 
-        // Sync Variables
+        // 同期用の変数を追加（初期値0）
         let syncOffset = 0;
-        let isSeeking = false;
+        let isSeeking = false; // シーク中フラグ
+
+        function updateUIText() {
+            const t = TRANSLATIONS[currentLang];
+            document.getElementById('lblFileA').childNodes[0].nodeValue = t.fileA;
+            document.getElementById('lblFileB').childNodes[0].nodeValue = t.fileB;
+            document.getElementById('syncMoveBtn').innerText = t.sync;
+            document.getElementById('recBtn').innerText = isRecording ? t.stop : t.rec;
+            document.getElementById('layoutBtn').innerText = t.layout;
+            document.getElementById('lblGhost').innerText = t.ghost;
+            document.getElementById('lblBright').innerText = t.bright;
+            document.getElementById('btnPrevFrame').innerText = t.prevFrame;
+            document.getElementById('btnNextFrame').innerText = t.nextFrame;
+            document.getElementById('loopStartBtn').innerText = loopStart ? `${t.loopStart}: ${formatTime(loopStart)}` : t.loopStart;
+            document.getElementById('loopEndBtn').innerText = loopEnd ? `${t.loopEnd}: ${formatTime(loopEnd)}` : t.loopEnd;
+            document.getElementById('loopToggleBtn').innerText = loopEnabled ? t.loopOn : t.loopOff;
+            
+            document.getElementById('drawBtn').innerText = t.draw;
+            document.getElementById('colorBtn').lastChild.nodeValue = t.color;
+            document.getElementById('shapeBtn').innerText = t.shape; // 初期値
+            document.getElementById('btnUndo').innerText = t.undo;
+            document.getElementById('btnClear').innerText = t.clear;
+            document.getElementById('metaBtn').innerText = t.memo;
+            
+            document.getElementById('skelBtn').innerText = t.skel;
+            document.getElementById('skelWidthBtn').innerText = `${t.skelWidth}: ${skelWidths[skelWidthIdx]}`;
+            document.getElementById('skelColorBtn').lastChild.nodeValue = t.skelColor;
+            
+            document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? `${t.grid}: OFF` : `${t.grid}: ${gridSizes[gridIdx]}`;
+            document.getElementById('gridWidthBtn').innerText = `${t.gridWidth}: ${gridWidths[gridWidthIdx]}px`;
+            document.getElementById('gridColorBtn').innerText = `${t.gridColor}: ${gridColorNames[gridColorIdx]}`;
+            
+            document.getElementById('mirrorABtn').innerText = t.mirrorA;
+            document.getElementById('mirrorBBtn').innerText = t.mirrorB;
+            document.getElementById('speedBtn').innerText = `${t.speed} x${speeds[speedIdx]}`;
+            document.getElementById('btnReset').innerText = t.reset;
+            
+            document.getElementById('saveTitle').innerText = t.saveTitle;
+            document.getElementById('btnCloseSave').innerText = t.close;
+            document.getElementById('btnSaveFile').innerText = t.save;
+            document.getElementById('saveMsg').innerText = t.saveMsg;
+        }
+
+        async function initAppWithLang(lang) {
+            currentLang = lang;
+            updateUIText();
+            document.getElementById('loginOverlay').style.display = 'none';
+            await initApp();
+        }
 
         async function initApp() {
-            document.getElementById('loginOverlay').style.display = 'none';
             await setupAudio();
             vidA.load();
             vidB.load();
             
-            // B is silent (controlled via HARD_SYNC)
+            // VidBは完全ミュート（WebAudioにも繋がない）
             vidB.muted = true;
             vidB.volume = 0;
             
@@ -336,6 +465,7 @@
         async function initPose() {
             if (detector) return;
             try {
+                // Initialize TensorFlow.js and MoveNet MultiPose
                 await tf.setBackend('webgl');
                 detector = await poseDetection.createDetector(
                     poseDetection.SupportedModels.MoveNet,
@@ -351,7 +481,8 @@
         }
 
         function setMetadata() { 
-            const txt = prompt("Memo:", metadataText || new Date().toLocaleDateString()); 
+            const t = TRANSLATIONS[currentLang];
+            const txt = prompt(t.memoPrompt, metadataText || new Date().toLocaleDateString()); 
             if(txt !== null) metadataText = txt; 
         }
 
@@ -361,6 +492,7 @@
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
                 
+                // --- Video A Setup (音声あり、録画にも使う) ---
                 const srcA = audioCtx.createMediaElementSource(vidA);
                 gainNodeA = audioCtx.createGain();
                 analyserA = audioCtx.createAnalyser();
@@ -368,10 +500,10 @@
                 
                 srcA.connect(gainNodeA); 
                 srcA.connect(analyserA);
-                gainNodeA.connect(audioCtx.destination);
-                gainNodeA.connect(destNode);
+                gainNodeA.connect(audioCtx.destination); // スピーカーへ
+                gainNodeA.connect(destNode); // 録画へ
                 
-                vidA.muted = false; 
+                vidA.muted = false; // AはWebAudio経由で鳴らす
                 vidA.volume = 1.0;
                 
                 dataA = new Uint8Array(analyserA.frequencyBinCount);
@@ -392,11 +524,18 @@
             v.src = url; 
             v.onloadedmetadata = () => { if(target==='A') seekA.max = v.duration; else seekB.max = v.duration; };
             v.load();
+            
             if(target === 'B') { 
-                v.muted = true; v.volume = 0; 
-                syncOffset = 0;
+                // Bは常にミュート（音声競合を避けるため）
+                v.muted = true; 
+                v.volume = 0; 
+                syncOffset = 0; 
             } 
-            else if(target === 'A') { v.muted = false; v.volume = 1.0; } 
+            else if(target === 'A') { 
+                // Aは音声を出す
+                v.muted = false; 
+                v.volume = 1.0; 
+            } 
         }
 
         function handleRecClick() {
@@ -429,87 +568,50 @@
                 previewVid.src = URL.createObjectURL(lastBlob);
                 saveContainer.style.display = 'flex';
                 document.getElementById('recBtn').classList.remove('recording'); 
-                document.getElementById('recBtn').innerText = "● REC"; 
+                document.getElementById('recBtn').innerText = TRANSLATIONS[currentLang].rec; 
             };
             mediaRecorder.start(1000); 
             isRecording = true;
             document.getElementById('recBtn').classList.add('recording');
-            document.getElementById('recBtn').innerText = "■ STOP";
+            document.getElementById('recBtn').innerText = TRANSLATIONS[currentLang].stop;
         }
 
         function stopRecording() { if(mediaRecorder && isRecording) { mediaRecorder.stop(); isRecording = false; vidA.pause(); vidB.pause(); } }
 
         async function shareVideo() {
             if (!lastBlob) return;
-            const file = new File([lastBlob], `FormMirror_${Date.now()}.mp4`, { type: lastBlob.type });
+            const file = new File([lastBlob], `ManekkoSync_${Date.now()}.mp4`, { type: lastBlob.type });
             if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
             else { const a = document.createElement('a'); a.href = URL.createObjectURL(lastBlob); a.download = file.name; a.click(); }
         }
 
-        // --- 4. Toggle Play (Hard Sync Logic) ---
-        async function togglePlay() {
-            if (vidA.paused) {
-                await Promise.all([vidA.play(), vidB.play()]);
-            } else {
-                vidA.pause();
-                vidB.pause();
-            }
+        // --- シーク・同期関連の関数 (Hard Sync Logic Ported) ---
+        function startSeek() {
+            isSeeking = true;
         }
 
-        function toggleUI() { 
-            const isVisible = document.getElementById('bottomPanel').classList.contains('ui-visible');
-            if(isVisible) {
-                document.getElementById('bottomPanel').classList.remove('ui-visible');
-                document.getElementById('topPanel').classList.remove('ui-visible');
-            } else { showUI(); }
-        }
-        function showUI() { 
-            document.getElementById('bottomPanel').classList.add('ui-visible'); 
-            document.getElementById('topPanel').classList.add('ui-visible'); 
-        }
-
-        function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
-        function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
-        function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
-        
-        // --- 6. Seek Relative (A-Master) ---
-        function seekRelative(sec) {
-            vidA.currentTime += sec;
-            vidB.currentTime = vidA.currentTime + syncOffset;
-        }
-        
-        // --- 5. Frame Change (A-Master) ---
-        function changeFrame(dir) {
-            const fps = 30;
-            const step = 1 / fps;
-            vidA.currentTime += dir * step;
-            vidB.currentTime = vidA.currentTime + syncOffset;
-        }
-        
-        function startSeek() { isSeeking = true; }
         function seeking(target, val) {
             if(target === 'A') vidA.currentTime = parseFloat(val);
             else vidB.currentTime = parseFloat(val);
         }
-        
-        // --- 7. End Seek (Update Offset) ---
+
         function endSeek(target, val) {
             isSeeking = false;
-        
-            if (target === "A") {
-                vidA.currentTime = parseFloat(val);
-                // Bは動かさない
+            // シーク終了後に今の位置関係を正として記憶
+            if(target === 'B') {
+                vidB.currentTime = parseFloat(val);
                 syncOffset = vidB.currentTime - vidA.currentTime;
             } else {
-                vidB.currentTime = parseFloat(val);
-                // Aは動かさない
+                vidA.currentTime = parseFloat(val);
                 syncOffset = vidB.currentTime - vidA.currentTime;
             }
         }
-        
-        function updateSyncOffset() { syncOffset = vidB.currentTime - vidA.currentTime; }
 
-        // --- 3. Render Loop Sync ---
+        function updateSyncOffset() {
+            syncOffset = vidB.currentTime - vidA.currentTime;
+        }
+        
+        // --- 移植された Hard Sync Logic ---
         function syncVideos() {
             if (isSeeking) return;
             if (vidA.paused || vidB.paused) return;
@@ -517,8 +619,8 @@
             const target = vidA.currentTime + syncOffset;
             const diff   = vidB.currentTime - target;
         
-            // 高精度同期（今とほぼ同じ精度）
-            if (Math.abs(diff) > 0.002) {   // 2ms
+            // 2ms以上のズレで強制補正（Hard Sync）
+            if (Math.abs(diff) > 0.002) {
                 vidB.currentTime = target;
             }
         }
@@ -528,7 +630,7 @@
             const w = canvas.width, h = canvas.height;
             const ghost = document.getElementById('ghostRange').value / 100, bri = document.getElementById('brightnessRange').value;
 
-            // Apply Hard Sync
+            // --- 精密同期ロジック呼び出し ---
             syncVideos();
 
             if (loopEnabled && loopEnd !== null && vidA.currentTime >= loopEnd) {
@@ -571,24 +673,24 @@
 
             if (layout === 0) {
                 drawV(vidA, 0, 0, w/2, h, mirrorA, 1, 100, transformA);
-                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
+                if(showSkeleton && poseResults.A) drawMultiSkeleton(poseResults.A, 0, 0, w/2, h, mirrorA, transformA, vidA);
 
                 drawV(vidB, w/2, 0, w/2, h, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawMultiSkeleton(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
+                if(showSkeleton && poseResults.B) drawMultiSkeleton(poseResults.B, w/2, 0, w/2, h, mirrorB, transformB, vidB);
 
                 if(ghost > 0) drawV(vidA, w/2, 0, w/2, h, mirrorA, ghost, 100, transformA);
             } else if (layout === 1) {
                 drawV(vidA, 0, 0, w, h/2, mirrorA, 1, 100, transformA);
-                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
+                if(showSkeleton && poseResults.A) drawMultiSkeleton(poseResults.A, 0, 0, w, h/2, mirrorA, transformA, vidA);
 
                 drawV(vidB, 0, h/2, w, h/2, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
+                if(showSkeleton && poseResults.B) drawMultiSkeleton(poseResults.B, 0, h/2, w, h/2, mirrorB, transformB, vidB);
             } else {
                 drawV(vidB, 0, 0, w, h, mirrorB, 1, bri, transformB);
-                if(showSkeleton) drawMultiSkeleton(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
+                if(showSkeleton && poseResults.B) drawMultiSkeleton(poseResults.B, 0, 0, w, h, mirrorB, transformB, vidB);
 
                 drawV(vidA, 0, 0, w, h, mirrorA, Math.max(0.3, ghost), 100, transformA);
-                if(showSkeleton) drawMultiSkeleton(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
+                if(showSkeleton && poseResults.A) drawMultiSkeleton(poseResults.A, 0, 0, w, h, mirrorA, transformA, vidA);
             }
             
             if(gridSizes[gridIdx] > 0) drawGrid();
@@ -600,7 +702,7 @@
             requestAnimationFrame(render);
         }
 
-        // MoveNet MultiPose Drawing Logic
+        // MoveNet MultiPose用の描画関数
         function drawMultiSkeleton(poses, x, y, w, h, mirror, trans, videoRef) {
             if(!poses || poses.length === 0 || videoRef.readyState < 2) return;
             
@@ -623,7 +725,7 @@
             ctx.lineWidth = skelWidths[skelWidthIdx];
             ctx.strokeStyle = currentColor;
 
-            // MoveNet Connections (COCO Keypoints)
+            // MoveNet Keypoint Connections (COCO style)
             const connections = [
                 [5,7],[7,9],[6,8],[8,10], // Arms
                 [5,6],[5,11],[6,12],[11,12], // Torso
@@ -633,13 +735,20 @@
             poses.forEach(pose => {
                 if(pose.score < 0.2) return;
                 
-                // Keypoints normalization
-                const drawPoints = pose.keypoints.map(kp => ({
-                    x: (kp.x / videoRef.videoWidth - 0.5) * dw,
-                    y: (kp.y / videoRef.videoHeight - 0.5) * dh,
+                // Convert pixels to normalized relative to video size
+                const normalizedKeypoints = pose.keypoints.map(kp => ({
+                    x: kp.x / videoRef.videoWidth,
+                    y: kp.y / videoRef.videoHeight,
                     score: kp.score
                 }));
 
+                const drawPoints = normalizedKeypoints.map(kp => ({
+                    x: (kp.x - 0.5) * dw,
+                    y: (kp.y - 0.5) * dh,
+                    score: kp.score
+                }));
+
+                // Draw connections
                 for (const [start, end] of connections) {
                     if (drawPoints[start] && drawPoints[end] && 
                         drawPoints[start].score > 0.3 && drawPoints[end].score > 0.3) {
@@ -656,46 +765,56 @@
 
         async function togglePlay() {
             resumeAudioContext(); 
-            if (vidA.paused) {
+            if(vidA.paused) { 
                 const t = vidA.currentTime;
-                vidB.currentTime = t + syncOffset; // Pre-align
+                vidB.currentTime = t + syncOffset; // Pre-align for hard sync
                 await Promise.all([vidA.play(), vidB.play()]);
-            } else {
-                vidA.pause();
+            } else { 
+                vidA.pause(); 
                 vidB.pause();
+                // 停止時はピタッと合わせる
+                vidB.currentTime = vidA.currentTime + syncOffset;
             }
         }
 
         function toggleUI() { 
             const isVisible = document.getElementById('bottomPanel').classList.contains('ui-visible');
+            const icon = document.getElementById('toggleIcon');
+            
             if(isVisible) {
                 document.getElementById('bottomPanel').classList.remove('ui-visible');
                 document.getElementById('topPanel').classList.remove('ui-visible');
-            } else { showUI(); }
+                icon.innerText = "▲";
+            } else { 
+                showUI();
+                icon.innerText = "▼";
+            }
         }
+        
         function showUI() { 
             document.getElementById('bottomPanel').classList.add('ui-visible'); 
             document.getElementById('topPanel').classList.add('ui-visible'); 
+            document.getElementById('toggleIcon').innerText = "▼";
         }
 
         function formatTime(v) { const m=Math.floor(v/60), s=Math.floor(v%60), ms=Math.floor((v%1)*100); return `${m}:${s.toString().padStart(2,'0')}.${ms.toString().padStart(2,'0')}`; }
         function nudgeA(sec) { vidA.currentTime = Math.max(0, vidA.currentTime + sec); updateSyncOffset(); }
         function nudgeB(sec) { vidB.currentTime = Math.max(0, vidB.currentTime + sec); updateSyncOffset(); }
         
-        function seekRelative(sec) {
-            vidA.currentTime += sec;
-            vidB.currentTime = vidA.currentTime + syncOffset;
+        // --- 修正された移動ロジック (A基準でBを強制追従) ---
+        function seekRelative(sec) { 
+            vidA.currentTime += sec; 
+            vidB.currentTime = vidA.currentTime + syncOffset; 
         }
         
-        function changeFrame(dir) {
-            const fps = 30;
-            const step = 1 / fps;
-            vidA.currentTime += dir * step;
-            vidB.currentTime = vidA.currentTime + syncOffset;
+        function changeFrame(dir) { 
+            const step = 1/30; 
+            vidA.currentTime += dir * step; 
+            vidB.currentTime = vidA.currentTime + syncOffset; 
         }
-        
+
         function seekInput(target, val) { 
-            if(target === 'A') vidA.currentTime = parseFloat(val); 
+            if(target === 'A') { vidA.currentTime = parseFloat(val); }
             else { vidB.currentTime = parseFloat(val); updateSyncOffset(); }
         }
         function updateTimeDisplay() {
@@ -716,17 +835,18 @@
         
         function cycleGrid() { 
             gridIdx = (gridIdx + 1) % gridSizes.length; 
-            document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? "# Grid" : `# Grid:${gridSizes[gridIdx]}`;
+            const t = TRANSLATIONS[currentLang];
+            document.getElementById('gridBtn').innerText = gridSizes[gridIdx] === 0 ? `${t.grid}: OFF` : `${t.grid}: ${gridSizes[gridIdx]}`;
         }
 
         function cycleGridWidth() {
             gridWidthIdx = (gridWidthIdx + 1) % gridWidths.length;
-            document.getElementById('gridWidthBtn').innerText = `📏 ${gridWidths[gridWidthIdx]}px`;
+            document.getElementById('gridWidthBtn').innerText = `${TRANSLATIONS[currentLang].gridWidth}: ${gridWidths[gridWidthIdx]}px`;
         }
 
         function cycleGridColor() {
             gridColorIdx = (gridColorIdx + 1) % gridColors.length;
-            document.getElementById('gridColorBtn').innerText = `🎨 ${gridColorNames[gridColorIdx]}`;
+            document.getElementById('gridColorBtn').innerText = `${TRANSLATIONS[currentLang].gridColor}: ${gridColorNames[gridColorIdx]}`;
         }
         
         function drawGrid() {
@@ -760,13 +880,28 @@
             speedIdx = (speedIdx + 1) % speeds.length; 
             const s = speeds[speedIdx];
             vidA.playbackRate = vidB.playbackRate = s; 
-            vidA.preservesPitch = (s === 1.0);
-            vidB.preservesPitch = (s === 1.0);
-            document.getElementById('speedBtn').innerText = `⚡ x${s}`; 
+            
+            // 音飛び防止（ピッチ補正の切り替え）
+            if(s !== 1.0) {
+                if('preservesPitch' in vidA) { vidA.preservesPitch = false; vidB.preservesPitch = false; }
+                else if('mozPreservesPitch' in vidA) { vidA.mozPreservesPitch = false; vidB.mozPreservesPitch = false; }
+                else if('webkitPreservesPitch' in vidA) { vidA.webkitPreservesPitch = false; vidB.webkitPreservesPitch = false; }
+            } else {
+                if('preservesPitch' in vidA) { vidA.preservesPitch = true; vidB.preservesPitch = true; }
+                else if('mozPreservesPitch' in vidA) { vidA.mozPreservesPitch = true; vidB.mozPreservesPitch = true; }
+                else if('webkitPreservesPitch' in vidA) { vidA.webkitPreservesPitch = true; vidB.webkitPreservesPitch = true; }
+            }
+
+            document.getElementById('speedBtn').innerText = `${TRANSLATIONS[currentLang].speed} x${s}`; 
         }
 
         function cycleColor() { drawColorIdx = (drawColorIdx + 1) % drawColors.length; document.getElementById('colorDot').style.background = drawColors[drawColorIdx]; }
-        function cycleShape() { const ss = ['free', 'line', 'circle']; drawShape=ss[(ss.indexOf(drawShape)+1)%3]; document.getElementById('shapeBtn').innerText=drawShape; }
+        function cycleShape() { 
+            const ss = ['free', 'line', 'circle']; 
+            const sn = ['じゆう', 'ちょくせん', 'まる'];
+            drawShape=ss[(ss.indexOf(drawShape)+1)%3]; 
+            document.getElementById('shapeBtn').innerText= currentLang === 'ja' ? `〰️ ${sn[ss.indexOf(drawShape)]}` : `〰️ ${drawShape.charAt(0).toUpperCase() + drawShape.slice(1)}`; 
+        }
         function toggleDrawMode() { drawMode = !drawMode; document.getElementById('drawBtn').classList.toggle('active', drawMode); }
         
         function toggleMirror(t) { 
@@ -785,7 +920,7 @@
 
         function cycleSkelWidth() {
             skelWidthIdx = (skelWidthIdx + 1) % skelWidths.length;
-            document.getElementById('skelWidthBtn').innerText = `💀 Width:${skelWidths[skelWidthIdx]}`;
+            document.getElementById('skelWidthBtn').innerText = `${TRANSLATIONS[currentLang].skelWidth}: ${skelWidths[skelWidthIdx]}`;
         }
 
         function cycleSkelColor() {
@@ -795,12 +930,13 @@
         }
 
         function setLoopPoint(t) { 
+            const tl = TRANSLATIONS[currentLang];
             if(t==='start') { 
                 loopStart = vidA.currentTime; 
-                document.getElementById('loopStartBtn').innerText = `📍 In: ${formatTime(loopStart)}`;
+                document.getElementById('loopStartBtn').innerText = `${tl.loopStart}: ${formatTime(loopStart)}`;
             } else { 
                 loopEnd = vidA.currentTime; 
-                document.getElementById('loopEndBtn').innerText = `📍 Out: ${formatTime(loopEnd)}`;
+                document.getElementById('loopEndBtn').innerText = `${tl.loopEnd}: ${formatTime(loopEnd)}`;
             }
             renderLoopMarkers();
         }
@@ -826,7 +962,7 @@
         function toggleLoopEnabled() { 
             loopEnabled = !loopEnabled;
             const btn = document.getElementById('loopToggleBtn');
-            btn.innerText = loopEnabled ? "🔄 Loop ON" : "🔄 Loop OFF";
+            btn.innerText = loopEnabled ? TRANSLATIONS[currentLang].loopOn : TRANSLATIONS[currentLang].loopOff;
             btn.classList.toggle('loop-on', loopEnabled);
         }
 
